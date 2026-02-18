@@ -1,9 +1,10 @@
-import Map from "@/components/Map";
+import EcosystemDashboard from "@/components/dashboard/EcosystemDashboard";
 
 export default function Home() {
   return (
-    <main style={{ height: "100vh", width: "100%" }}>
-      <Map />
-    </main>
+    <EcosystemDashboard
+      geoJsonPath="/fisheriesdata/20260216_tidied_noncomm_ev.geojson"
+      datasetLabel="Non-Commercial Fisheries"
+    />
   );
 }

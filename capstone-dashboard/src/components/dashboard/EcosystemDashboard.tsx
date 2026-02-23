@@ -6,128 +6,171 @@ import "./dashboard.css";
 import FilterSidebar from "./FilterSidebar";
 
 interface DashboardProps {
-    geoJsonPath: string;
-    datasetLabel: string;
+  geoJsonPath: string;
+  datasetLabel: string;
+}
+
+interface CsvRow {
+  year: number;
+  county: string;
+  species_group: string;
+  ecosystem_type: string;
+  exchange_value: number;
 }
 
 export default function EcosystemDashboard({
-    geoJsonPath,
-    datasetLabel,
+  geoJsonPath,
+  datasetLabel,
 }: DashboardProps) {
-    const [geoData, setGeoData] = useState<any>(null);
+  const [geoData, setGeoData] = useState<any>(null);
+  const [csvData, setCsvData] = useState<CsvRow[]>([]);
+  const [dataset, setDataset] = useState<"noncomm" | "comm">("noncomm");
 
-    const [selectedYear, setSelectedYear] = useState<number | null>(null);
-    const [selectedCounty, setSelectedCounty] = useState("");
-    const [selectedSpecies, setSelectedSpecies] = useState("");
-    const [selectedEcosystem, setSelectedEcosystem] = useState("");
+  const [selectedYear, setSelectedYear] = useState<number | null>(null);
+  const [selectedCounty, setSelectedCounty] = useState("");
+  const [selectedSpecies, setSelectedSpecies] = useState("");
+  const [selectedEcosystem, setSelectedEcosystem] = useState("");
 
-    useEffect(() => {
-        fetch(geoJsonPath)
-            .then((res) => res.json())
-            .then((data) => {
-                setGeoData(data);
+  // -------------------------------------------------
+  // LOAD GEOJSON + CSV (DATASET DEPENDENT)
+  // -------------------------------------------------
+  useEffect(() => {
+    async function loadData() {
+      const geoRes = await fetch(geoJsonPath);
+      const geo = await geoRes.json();
 
-                const first = data.features[0]?.properties;
-                setSelectedYear(null);
-                setSelectedSpecies(first?.species_group || "");
-                setSelectedEcosystem(first?.ecosystem_type || "");
-            });
-    }, [geoJsonPath]);
+      const csvPath =
+        dataset === "noncomm"
+          ? "/fisheriesdata/20260216_tidied_noncomm_ev.csv"
+          : "/fisheriesdata/20260216_tidied_comm_ev.csv";
 
-    if (!geoData) return <div>Loading {datasetLabel}...</div>;
+      const csvRes = await fetch(csvPath);
+      const csvText = await csvRes.text();
 
-    // ----------------------------
-    // Extract unique filter values
-    // ----------------------------
-    const counties = [
-        ...new Set(geoData.features.map((f: any) => f.properties.county)),
-    ];
+      const lines = csvText.split("\n").filter(r => r.trim() !== "");
 
-    const years = [
-        ...new Set(geoData.features.map((f: any) => f.properties.year)),
-    ].sort();
+      const headers = lines[0]
+        .split(",")
+        .map(h => h.replace(/"/g, "").trim());
 
-    const speciesGroups = [
-        ...new Set(geoData.features.map((f: any) => f.properties.species_group)),
-    ];
+      const parsed: CsvRow[] = lines.slice(1).map((line) => {
+        const values = line.split(",");
 
-    const ecosystemTypes = [
-        ...new Set(geoData.features.map((f: any) => f.properties.ecosystem_type)),
-    ];
+        const row: any = {};
 
-    // ----------------------------
-    // FILTER
-    // ----------------------------
-    const filteredFeatures = geoData.features.filter((f: any) => {
-        return (
-            (selectedYear === null || f.properties.year === selectedYear) &&
-            (selectedSpecies === "" ||
-                f.properties.species_group === selectedSpecies) &&
-            (selectedEcosystem === "" ||
-                f.properties.ecosystem_type === selectedEcosystem)
-        );
-    });
+        headers.forEach((header, index) => {
+          row[header] = values[index]?.replace(/"/g, "").trim();
+        });
 
-    // ----------------------------
-    // AGGREGATE BY COUNTY
-    // ----------------------------
-    const totalsByCounty: Record<string, number> = {};
+        let county = row["county"];
 
-    filteredFeatures.forEach((f: any) => {
-        const county = f.properties.county;
-        const value = Number(f.properties.exchange_value) || 0;
-
-        totalsByCounty[county] =
-            (totalsByCounty[county] || 0) + value;
-    });
-
-    // ----------------------------
-    // ATTACH TOTALS TO POLYGONS
-    // ----------------------------
-    const aggregatedFeatures = geoData.features.map((feature: any) => {
-        const county = feature.properties.county;
+        // Normalize Lanai / Molokai into Maui
+        if (county === "Lanai" || county === "Molokai") {
+          county = "Maui";
+        }
 
         return {
-            ...feature,
-            properties: {
-                ...feature.properties,
-                total_exchange_value: totalsByCounty[county] || 0,
-            },
+          year: Number(row["year"]),
+          county,
+          species_group: row["species_group"],
+          ecosystem_type: row["ecosystem_type"],
+          exchange_value: Number(row["exchange_value"]) || 0,
         };
-    });
+      });
 
-    const aggregatedGeoJSON = {
-        ...geoData,
-        features: aggregatedFeatures,
-    };
+      setGeoData(geo);
+      setCsvData(parsed);
 
+      // Reset filters when dataset changes
+      setSelectedCounty("");
+      setSelectedYear(null);
+      setSelectedSpecies("");
+      setSelectedEcosystem("");
+    }
+
+    loadData();
+  }, [geoJsonPath, dataset]);
+
+  if (!geoData) return <div>Loading {datasetLabel}...</div>;
+
+  // -------------------------------------------------
+  // DERIVE FILTER VALUES FROM CSV
+  // -------------------------------------------------
+  const counties = [...new Set(csvData.map(d => d.county))];
+  const years = [...new Set(csvData.map(d => d.year))].sort();
+  const speciesGroups = [...new Set(csvData.map(d => d.species_group))];
+  const ecosystemTypes = [...new Set(csvData.map(d => d.ecosystem_type))];
+
+  // -------------------------------------------------
+  // APPLY FILTERS TO CSV
+  // -------------------------------------------------
+  const filteredRows = csvData.filter((row) => {
     return (
-        <div className="dashboard-container">
-            <FilterSidebar
-                datasetLabel={datasetLabel}
-                counties={counties}
-                years={years}
-                speciesGroups={speciesGroups}
-                ecosystemTypes={ecosystemTypes}
-                selectedCounty={selectedCounty}
-                selectedYear={selectedYear}
-                selectedSpecies={selectedSpecies}
-                selectedEcosystem={selectedEcosystem}
-                setSelectedCounty={setSelectedCounty}
-                setSelectedYear={setSelectedYear}
-                setSelectedSpecies={setSelectedSpecies}
-                setSelectedEcosystem={setSelectedEcosystem}
-            />
-
-            <div className="map-wrapper">
-                <Map
-                    geoData={aggregatedGeoJSON}
-                    selectedCounty={selectedCounty}
-                    selectedYear={selectedYear}
-                    selectedSpecies={selectedSpecies}
-                    selectedEcosystem={selectedEcosystem}
-                />
-            </div>
-        </div>
+      (selectedYear === null || row.year === selectedYear) &&
+      (selectedCounty === "" || row.county === selectedCounty) &&
+      (selectedSpecies === "" || row.species_group === selectedSpecies) &&
+      (selectedEcosystem === "" || row.ecosystem_type === selectedEcosystem)
     );
+  });
+
+  // -------------------------------------------------
+  // AGGREGATE BY COUNTY
+  // -------------------------------------------------
+  const totalsByCounty: Record<string, number> = {};
+
+  filteredRows.forEach((row) => {
+    totalsByCounty[row.county] =
+      (totalsByCounty[row.county] || 0) + row.exchange_value;
+  });
+
+  // -------------------------------------------------
+  // ATTACH TOTALS TO GEOJSON
+  // -------------------------------------------------
+  const aggregatedFeatures = geoData.features.map((feature: any) => {
+    const county = feature.properties.county;
+
+    return {
+      ...feature,
+      properties: {
+        ...feature.properties,
+        total_exchange_value: totalsByCounty[county] || 0,
+      },
+    };
+  });
+
+  const aggregatedGeoJSON = {
+    ...geoData,
+    features: aggregatedFeatures,
+  };
+
+  return (
+    <div className="dashboard-container">
+      <FilterSidebar
+        dataset={dataset}
+        setDataset={setDataset}
+        counties={counties}
+        years={years}
+        speciesGroups={speciesGroups}
+        ecosystemTypes={ecosystemTypes}
+        selectedCounty={selectedCounty}
+        selectedYear={selectedYear}
+        selectedSpecies={selectedSpecies}
+        selectedEcosystem={selectedEcosystem}
+        setSelectedCounty={setSelectedCounty}
+        setSelectedYear={setSelectedYear}
+        setSelectedSpecies={setSelectedSpecies}
+        setSelectedEcosystem={setSelectedEcosystem}
+      />
+
+      <div className="map-wrapper">
+        <Map
+          geoData={aggregatedGeoJSON}
+          selectedCounty={selectedCounty}
+          selectedYear={selectedYear}
+          selectedSpecies={selectedSpecies}
+          selectedEcosystem={selectedEcosystem}
+        />
+      </div>
+    </div>
+  );
 }

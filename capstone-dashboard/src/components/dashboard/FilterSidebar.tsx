@@ -1,3 +1,6 @@
+// Side bar component for dataset selection and filtering. 
+// Contains dataset toggle, county/year dropdowns, and species/ecosystem button groups. 
+// Updates parent state on user interaction to trigger map updates.
 "use client";
 import "./dashboard.css";
 

@@ -1,3 +1,4 @@
+// Main dashboard component that loads GeoJSON and CSV data, manages filter state, and renders the map and sidebar.
 "use client";
 
 import { useEffect, useState } from "react";

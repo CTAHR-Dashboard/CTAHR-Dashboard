@@ -1,3 +1,4 @@
+//Rendering map component, styles for choropleth, and tooltip content. Uses quantiles for color scaling.
 "use client";
 
 import { MapContainer, TileLayer, GeoJSON, ZoomControl } from "react-leaflet";
@@ -40,11 +41,11 @@ export default function Map({
   const q4 = sorted[Math.floor(sorted.length * 0.8)] || 0;
 
   const getColor = (value: number) => {
-  if (value > q4) return "#7f0000";
-  if (value > q3) return "#b30000";
-  if (value > q2) return "#e34a33";
-  if (value > q1) return "#fc8d59";
-  return "#fdd49e";
+  if (value > q4) return "#ff0707";
+  if (value > q3) return "#ce4444";
+  if (value > q2) return "#a44d40";
+  if (value > q1) return "#9c7a6f";
+  return "#d4d4d4b3";
 };
 
   const formatCurrency = (value: number) => {

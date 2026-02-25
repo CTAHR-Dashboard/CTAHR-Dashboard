@@ -1,0 +1,159 @@
+.dashboard-container {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.map-wrapper {
+  flex: 1;
+  height: 100vh;
+}
+
+/* ================= Sidebar ================= */
+
+.sidebar {
+  width: 420px;
+  background: #0e0e0e;
+  color: #ffffff;
+  display: flex;
+  border-right: 1px solid #1c1c1c;
+}
+
+/* Left tab rail */
+.sidebar-tabs {
+  width: 180px;
+  background: #0a0a0a;
+  border-right: 1px solid #1c1c1c;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Branding */
+.tabs-header {
+  padding: 22px 16px;
+  font-size: 18px;
+  font-weight: 600;
+  border-bottom: 1px solid #1c1c1c;
+  background: #111;
+}
+
+.tabs-subtitle {
+  font-size: 12px;
+  opacity: 0.6;
+  margin-top: 4px;
+}
+
+/* Tabs */
+.tab {
+  position: relative;
+  padding: 16px 16px 16px 20px;
+  cursor: pointer;
+  border-bottom: 1px solid #141414;
+  font-size: 14px;
+  transition: background 0.2s ease;
+}
+
+.tab:hover {
+  background: #181818;
+}
+
+.tab.active {
+  background: #202020;
+  font-weight: 600;
+}
+
+.tab.active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  width: 4px;
+  background: #d94801;
+  transition: all 0.2s ease;
+}
+
+/* Right panel */
+.sidebar-panel {
+  flex: 1;
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  overflow-y: auto;
+
+  animation: slideIn 0.25s ease forwards;
+}
+
+/* Slide animation */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(15px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Labels */
+.filter-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  opacity: 0.6;
+  margin-bottom: 6px;
+}
+
+/* Dropdown */
+.filter-select {
+  width: 100%;
+  background: #1a1a1a;
+  color: #ffffff;
+  border: 1px solid #2c2c2c;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.filter-select:focus {
+  outline: none;
+  border-color: #d94801;
+  box-shadow: 0 0 0 2px rgba(217, 72, 1, 0.25);
+}
+
+/* Button groups */
+.button-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.filter-btn {
+  background: #1a1a1a;
+  color: #ffffff;
+  border: 1px solid #2c2c2c;
+  padding: 6px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.2s ease;
+}
+
+.filter-btn:hover {
+  background: #242424;
+}
+
+.filter-btn.active {
+  background: #d94801;
+  border-color: #d94801;
+}
+
+.filter-btn:focus {
+  outline: none;
+}
+
+.leaflet-interactive:focus {
+  outline: none;
+}

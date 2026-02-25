@@ -3,6 +3,7 @@
 // Updates parent state on user interaction to trigger map updates.
 "use client";
 import "./dashboard.css";
+import Image from "next/image";
 
 interface FilterSidebarProps {
   dataset: "noncomm" | "comm";
@@ -45,9 +46,10 @@ export default function FilterSidebar({
       <div className="sidebar-tabs">
 
         <div className="tabs-header">
+          <Image src="/icon.png" alt="Lab Icon" width={150} height={32} />
           Hawaiʻi
           <div className="tabs-subtitle">
-            Coastal Ecosystem Accounts
+            Ecosystem Accounts
           </div>
         </div>
 

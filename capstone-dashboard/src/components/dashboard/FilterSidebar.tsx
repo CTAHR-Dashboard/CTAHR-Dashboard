@@ -1,6 +1,6 @@
 "use client";
 
-interface SidebarProps {
+interface FilterSidebarProps {
   dataset: "noncomm" | "comm";
   setDataset: (val: "noncomm" | "comm") => void;
   counties: string[];
@@ -17,7 +17,7 @@ interface SidebarProps {
   setSelectedEcosystem: (val: string) => void;
 }
 
-export default function Sidebar({
+export default function FilterSidebar({
   dataset,
   setDataset,
   counties,
@@ -32,11 +32,11 @@ export default function Sidebar({
   setSelectedYear,
   setSelectedSpecies,
   setSelectedEcosystem,
-}: SidebarProps) {
+}: FilterSidebarProps) {
   return (
     <div className="w-72 bg-white shadow-lg rounded-lg p-4 flex flex-col gap-6">
       
-      {/* Header without Image */}
+      {/* Header */}
       <div className="flex flex-col gap-1">
         <h1 className="text-lg font-bold">Hawaiʻi</h1>
         <p className="text-sm text-gray-500">Ecosystem Accounts</p>
@@ -44,21 +44,28 @@ export default function Sidebar({
 
       {/* Dataset Tabs */}
       <div className="flex flex-col gap-2">
-        {["noncomm", "comm"].map((d) => (
-          <button
-            key={d}
-            className={`px-3 py-2 rounded ${
-              dataset === d ? "bg-blue-500 text-white font-semibold" : "bg-gray-100 text-gray-700"
-            }`}
-            onClick={() => setDataset(d as "noncomm" | "comm")}
-          >
-            {d === "noncomm" ? "Non-Commercial Fishery Values" : "Commercial Fishery Values"}
-          </button>
-        ))}
+        <button
+          className={`px-3 py-2 rounded ${
+            dataset === "noncomm" ? "bg-blue-500 text-white font-semibold" : "bg-gray-100 text-gray-700"
+          }`}
+          onClick={() => setDataset("noncomm")}
+        >
+          Non-Commercial Fishery Values
+        </button>
+
+        <button
+          className={`px-3 py-2 rounded ${
+            dataset === "comm" ? "bg-blue-500 text-white font-semibold" : "bg-gray-100 text-gray-700"
+          }`}
+          onClick={() => setDataset("comm")}
+        >
+          Commercial Fishery Values
+        </button>
       </div>
 
-      {/* Filters Card */}
+      {/* Filters */}
       <div className="flex flex-col gap-4">
+
         {/* County */}
         <div className="flex flex-col">
           <label className="text-sm font-medium mb-1">County</label>
@@ -91,7 +98,7 @@ export default function Sidebar({
           </select>
         </div>
 
-        {/* Species Group Buttons */}
+        {/* Species Group */}
         <ButtonGroup
           label="Species Group"
           options={speciesGroups}
@@ -99,13 +106,14 @@ export default function Sidebar({
           setSelected={setSelectedSpecies}
         />
 
-        {/* Ecosystem Type Buttons */}
+        {/* Ecosystem Type */}
         <ButtonGroup
           label="Ecosystem Type"
           options={ecosystemTypes}
           selected={selectedEcosystem}
           setSelected={setSelectedEcosystem}
         />
+
       </div>
     </div>
   );
@@ -146,3 +154,4 @@ function ButtonGroup({ label, options, selected, setSelected }: ButtonGroupProps
     </div>
   );
 }
+

@@ -36,13 +36,10 @@ export default function Sidebar({
   return (
     <div className="w-72 bg-white shadow-lg rounded-lg p-4 flex flex-col gap-6">
       
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <img src="/icon.png" alt="Lab Icon" className="w-20 h-auto" />
-        <div>
-          <h1 className="text-lg font-bold">Hawaiʻi</h1>
-          <p className="text-sm text-gray-500">Ecosystem Accounts</p>
-        </div>
+      {/* Header without Image */}
+      <div className="flex flex-col gap-1">
+        <h1 className="text-lg font-bold">Hawaiʻi</h1>
+        <p className="text-sm text-gray-500">Ecosystem Accounts</p>
       </div>
 
       {/* Dataset Tabs */}

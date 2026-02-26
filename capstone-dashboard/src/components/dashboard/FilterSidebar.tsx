@@ -1,6 +1,3 @@
-// Side bar component for dataset selection and filtering. 
-// Contains dataset toggle, county/year dropdowns, and species/ecosystem button groups. 
-// Updates parent state on user interaction to trigger map updates.
 "use client";
 import "./dashboard.css";
 import Image from "next/image";
@@ -22,35 +19,37 @@ interface FilterSidebarProps {
   setSelectedEcosystem: (val: string) => void;
 }
 
-export default function FilterSidebar({
-  dataset,
-  setDataset,
-  counties,
-  years,
-  speciesGroups,
-  ecosystemTypes,
-  selectedCounty,
-  selectedYear,
-  selectedSpecies,
-  selectedEcosystem,
-  setSelectedCounty,
-  setSelectedYear,
-  setSelectedSpecies,
-  setSelectedEcosystem,
-}: FilterSidebarProps) {
+export default function FilterSidebar(props: FilterSidebarProps) {
+  const {
+    dataset,
+    setDataset,
+    counties,
+    years,
+    speciesGroups,
+    ecosystemTypes,
+    selectedCounty,
+    selectedYear,
+    selectedSpecies,
+    selectedEcosystem,
+    setSelectedCounty,
+    setSelectedYear,
+    setSelectedSpecies,
+    setSelectedEcosystem,
+  } = props;
+
+  // Helper to toggle active class
+  const isActive = (val: string, selected: string) =>
+    val === selected ? "filter-btn active" : "filter-btn";
 
   return (
-    <div className="sidebar">
+    <aside className="sidebar">
 
       {/* LEFT TAB COLUMN */}
-      <div className="sidebar-tabs">
-
+      <section className="sidebar-tabs">
         <div className="tabs-header">
           <Image src="/icon.png" alt="Lab Icon" width={150} height={32} />
           Hawaiʻi
-          <div className="tabs-subtitle">
-            Ecosystem Accounts
-          </div>
+          <div className="tabs-subtitle">Ecosystem Accounts</div>
         </div>
 
         <div
@@ -59,22 +58,20 @@ export default function FilterSidebar({
         >
           Non-Commercial Fishery Values
         </div>
-
         <div
           className={`tab ${dataset === "comm" ? "active" : ""}`}
           onClick={() => setDataset("comm")}
         >
           Commercial Fishery Values
         </div>
-
-      </div>
+      </section>
 
       {/* RIGHT PANEL */}
-      <div className="sidebar-panel">
+      <section className="sidebar-panel">
 
         {/* COUNTY */}
-        <div>
-          <div className="filter-label">County</div>
+        <fieldset>
+          <legend>County</legend>
           <select
             className="filter-select"
             value={selectedCounty}
@@ -85,18 +82,16 @@ export default function FilterSidebar({
               <option key={c} value={c}>{c}</option>
             ))}
           </select>
-        </div>
+        </fieldset>
 
         {/* YEAR */}
-        <div>
-          <div className="filter-label">Year</div>
+        <fieldset>
+          <legend>Year</legend>
           <select
             className="filter-select"
             value={selectedYear ?? ""}
             onChange={(e) =>
-              setSelectedYear(
-                e.target.value === "" ? null : Number(e.target.value)
-              )
+              setSelectedYear(e.target.value === "" ? null : Number(e.target.value))
             }
           >
             <option value="">All Years</option>
@@ -104,71 +99,61 @@ export default function FilterSidebar({
               <option key={y} value={y}>{y}</option>
             ))}
           </select>
-        </div>
+        </fieldset>
 
-        {/* SPECIES BUTTON GROUP */}
-        <div>
-          <div className="filter-label">Species Group</div>
-          <div className="button-group">
+        {/* SPECIES GROUP */}
+        <FilterButtonGroup
+          label="Species Group"
+          options={speciesGroups}
+          selected={selectedSpecies}
+          setSelected={setSelectedSpecies}
+        />
 
-            <button
-              type="button"
-              className={selectedSpecies === "" ? "filter-btn active" : "filter-btn"}
-              onClick={() => setSelectedSpecies("")}
-            >
-              All
-            </button>
+        {/* ECOSYSTEM TYPE */}
+        <FilterButtonGroup
+          label="Ecosystem Type"
+          options={ecosystemTypes}
+          selected={selectedEcosystem}
+          setSelected={setSelectedEcosystem}
+        />
 
-            {speciesGroups.map((s) => (
-              <button
-                type="button"
-                key={s}
-                className={
-                  selectedSpecies === s
-                    ? "filter-btn active"
-                    : "filter-btn"
-                }
-                onClick={() => setSelectedSpecies(s)}
-              >
-                {s}
-              </button>
-            ))}
-
-          </div>
-        </div>
-
-        {/* ECOSYSTEM BUTTON GROUP */}
-        <div>
-          <div className="filter-label">Ecosystem Type</div>
-          <div className="button-group">
-
-            <button
-              type="button"
-              className={selectedEcosystem === "" ? "filter-btn active" : "filter-btn"}
-              onClick={() => setSelectedEcosystem("")}
-            >
-              All
-            </button>
-
-            {ecosystemTypes.map((eType) => (
-              <button
-                type="button"
-                key={eType}
-                className={
-                  selectedEcosystem === eType
-                    ? "filter-btn active"
-                    : "filter-btn"
-                }
-                onClick={() => setSelectedEcosystem(eType)}
-              >
-                {eType}
-              </button>
-            ))}
-
-          </div>
-        </div>
-
-      </div>
-    </div>
+      </section>
+    </aside>
   );
 }
+
+// Reusable button group component
+interface FilterButtonGroupProps {
+  label: string;
+  options: string[];
+  selected: string;
+  setSelected: (val: string) => void;
+}
+
+function FilterButtonGroup({ label, options, selected, setSelected }: FilterButtonGroupProps) {
+  return (
+    <fieldset>
+      <legend>{label}</legend>
+      <div className="button-group">
+        <button
+          type="button"
+          className={selected === "" ? "filter-btn active" : "filter-btn"}
+          onClick={() => setSelected("")}
+        >
+          All
+        </button>
+        {options.map((opt) => (
+          <button
+            type="button"
+            key={opt}
+            className={selected === opt ? "filter-btn active" : "filter-btn"}
+            onClick={() => setSelected(opt)}
+          >
+            {opt}
+          </button>
+        ))}
+      </div>
+    </fieldset>
+  );
+}
+

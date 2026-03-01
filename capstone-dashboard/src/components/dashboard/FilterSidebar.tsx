@@ -4,6 +4,7 @@
 "use client";
 import "./dashboard.css";
 import Image from "next/image";
+import { useEffect, useState } from "react";
 
 interface FilterSidebarProps {
   dataset: "noncomm" | "comm";
@@ -38,6 +39,26 @@ export default function FilterSidebar({
   setSelectedSpecies,
   setSelectedEcosystem,
 }: FilterSidebarProps) {
+
+  // Files available to download 
+  const noncommFiles = [
+    { label: "Non-Commercial CSV", path: "/fisheriesdata/20260216_tidied_noncomm_ev.csv" },
+    { label: "Moku Extents CSV", path: "/mokuextentsdata/moku.csv" }, // <-- change filename if needed
+  ];
+
+  const commFiles = [
+    { label: "Commercial CSV", path: "/fisheriesdata/20260216_tidied_comm_ev.csv" },
+  ];
+
+  const files = dataset === "noncomm" ? noncommFiles : commFiles;
+
+  // Selected file for dropdown
+  const [selectedFile, setSelectedFile] = useState<string>(files[0]?.path ?? "");
+
+  // When user switches tabs, reset the dropdown to the first option
+  useEffect(() => {
+    setSelectedFile(files[0]?.path ?? "");
+  }, [dataset]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="sidebar">
@@ -167,28 +188,31 @@ export default function FilterSidebar({
 
             </div>
           </div>
-          {/* DOWNLOAD DATA */}
-          <div>
-            <div className="filter-label">Download Data</div>
-            <div className="button-group">
-              <a
-                href="/fisheriesdata/fisheries.csv"
-                download
-                className="filter-btn"
-              >
-                Fisheries CSV
-              </a>
-  
-              <a
-                href="/mokuextentsdata/moku.csv"
-                download
-                className="filter-btn"
-              >
-                Moku Extents CSV
-              </a>
-            </div>
+
+        {/* DOWNLOAD DATA */}
+        <div>
+          <div className="filter-label">Download Data</div>
+
+          <select
+            className="filter-select"
+            value={selectedFile}
+            onChange={(e) => setSelectedFile(e.target.value)}
+          >
+            {files.map((f) => (
+              <option key={f.path} value={f.path}>
+                {f.label}
+              </option>
+            ))}
+          </select>
+
+          <div className="button-group" style={{ marginTop: 10 }}>
+            <a href={selectedFile} download className="filter-btn">
+              Download CSV
+            </a>
           </div>
-        </div>  
+        </div>
+
       </div>
+    </div>
   );
 }

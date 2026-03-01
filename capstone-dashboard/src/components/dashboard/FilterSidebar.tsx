@@ -165,10 +165,30 @@ export default function FilterSidebar({
               </button>
             ))}
 
+            </div>
           </div>
-        </div>
-
+          {/* DOWNLOAD DATA */}
+          <div>
+            <div className="filter-label">Download Data</div>
+            <div className="button-group">
+              <a
+                href="/fisheriesdata/fisheries.csv"
+                download
+                className="filter-btn"
+              >
+                Fisheries CSV
+              </a>
+  
+              <a
+                href="/mokuextentsdata/moku.csv"
+                download
+                className="filter-btn"
+              >
+                Moku Extents CSV
+              </a>
+            </div>
+          </div>
+        </div>  
       </div>
-    </div>
   );
 }

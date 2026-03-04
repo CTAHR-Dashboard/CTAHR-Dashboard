@@ -48,11 +48,9 @@ export default function EcosystemDashboard({
       const csvRes = await fetch(csvPath);
       const csvText = await csvRes.text();
 
-      const lines = csvText.split("\n").filter(r => r.trim() !== "");
+      const lines = csvText.split("\n").filter((r) => r.trim() !== "");
 
-      const headers = lines[0]
-        .split(",")
-        .map(h => h.replace(/"/g, "").trim());
+      const headers = lines[0].split(",").map((h) => h.replace(/"/g, "").trim());
 
       const parsed: CsvRow[] = lines.slice(1).map((line) => {
         const values = line.split(",");
@@ -97,10 +95,10 @@ export default function EcosystemDashboard({
   // -------------------------------------------------
   // DERIVE FILTER VALUES FROM CSV
   // -------------------------------------------------
-  const counties = [...new Set(csvData.map(d => d.county))];
-  const years = [...new Set(csvData.map(d => d.year))].sort();
-  const speciesGroups = [...new Set(csvData.map(d => d.species_group))];
-  const ecosystemTypes = [...new Set(csvData.map(d => d.ecosystem_type))];
+  const counties = [...new Set(csvData.map((d) => d.county))];
+  const years = [...new Set(csvData.map((d) => d.year))].sort();
+  const speciesGroups = [...new Set(csvData.map((d) => d.species_group))];
+  const ecosystemTypes = [...new Set(csvData.map((d) => d.ecosystem_type))];
 
   // -------------------------------------------------
   // APPLY FILTERS TO CSV
@@ -120,8 +118,7 @@ export default function EcosystemDashboard({
   const totalsByCounty: Record<string, number> = {};
 
   filteredRows.forEach((row) => {
-    totalsByCounty[row.county] =
-      (totalsByCounty[row.county] || 0) + row.exchange_value;
+    totalsByCounty[row.county] = (totalsByCounty[row.county] || 0) + row.exchange_value;
   });
 
   // -------------------------------------------------
@@ -144,6 +141,86 @@ export default function EcosystemDashboard({
     features: aggregatedFeatures,
   };
 
+  function buildCsvFromRows(rowsForCsv: CsvRow[]) {
+    if (rowsForCsv.length === 0) return "";
+
+    const csvColumnOrder: (keyof CsvRow)[] = [
+      "year",
+      "county",
+      "species_group",
+      "ecosystem_type",
+      "exchange_value",
+    ];
+
+    const escapeCsvCell = (cellValue: unknown) => {
+      const cellText = String(cellValue ?? "");
+      const needsQuotes = /[",\n"]/.test(cellText);
+      return needsQuotes ? `"${cellText.replace(/"/g, '""')}"` : cellText;
+    };
+
+    const headerRow = csvColumnOrder.join(",");
+    const dataRows = rowsForCsv.map((row) =>
+      csvColumnOrder.map((col) => escapeCsvCell(row[col])).join(",")
+    );
+
+    return [headerRow, ...dataRows].join("\n");
+  }
+
+  function triggerCsvDownload(csvFilename: string, csvContents: string) {
+  const csvWithWindowsNewlines = csvContents.replace(/\n/g, "\r\n");
+  const csvWithBom = "\uFEFF" + csvWithWindowsNewlines; // helps Excel + UTF-8
+
+  const fileBlob = new Blob([csvWithBom], { type: "text/csv;charset=utf-8;" });
+  const fileUrl = URL.createObjectURL(fileBlob);
+
+  const downloadAnchor = document.createElement("a");
+  downloadAnchor.href = fileUrl;
+  downloadAnchor.download = csvFilename;
+  document.body.appendChild(downloadAnchor);
+  downloadAnchor.click();
+  downloadAnchor.remove();
+
+  URL.revokeObjectURL(fileUrl);
+}
+
+  const handleDownload = (
+    downloadMode: "ALL_SEPARATE" | "ONE_COUNTY",
+    county?: string
+  ) => {
+
+    const safe = (s: string) => s.replace(/[^\w\-]+/g, "_");
+
+    const filenameBaseParts = [
+      selectedYear ?? "all-years",
+      selectedSpecies || "all-species",
+      selectedEcosystem || "all-ecosystems",
+    ];
+
+    if (downloadMode === "ONE_COUNTY") {
+      if (!county) return;
+      const countyRows = filteredRows.filter((r) => r.county === county);
+      const csv = buildCsvFromRows(countyRows);
+      const filename = `${[dataset, safe(county), ...filenameBaseParts].join("_")}.csv`;
+      triggerCsvDownload(filename, csv);
+      return;
+    }
+
+    // ALL_SEPARATE: download each county separately
+    const rowsGroupedByCounty: Record<string, CsvRow[]> = {};
+    filteredRows.forEach((row) => {
+      const countyName = row.county || "Unknown";
+      (rowsGroupedByCounty[countyName] ||= []).push(row);
+    });
+
+    Object.entries(rowsGroupedByCounty).forEach(([countyName, countyRows], index) => {
+      const csv = buildCsvFromRows(countyRows);
+      const filename = `${[dataset, safe(countyName), ...filenameBaseParts].join("_")}.csv`;
+
+      // small stagger helps browsers allow multiple downloads
+      window.setTimeout(() => triggerCsvDownload(filename, csv), index * 250);
+    });
+  };
+
   return (
     <div className="dashboard-container">
       <FilterSidebar
@@ -161,6 +238,7 @@ export default function EcosystemDashboard({
         setSelectedYear={setSelectedYear}
         setSelectedSpecies={setSelectedSpecies}
         setSelectedEcosystem={setSelectedEcosystem}
+        onDownload={handleDownload}
       />
 
       <div className="map-wrapper">

@@ -9,7 +9,8 @@ import { useMemo } from "react";
 interface MapProps {
   geoData: any;
   selectedCounty: string;
-  selectedYear: number | null;
+  startYear: number | null;
+  endYear: number | null;
   selectedSpecies: string;
   selectedEcosystem: string;
 }
@@ -17,7 +18,8 @@ interface MapProps {
 export default function Map({
   geoData,
   selectedCounty,
-  selectedYear,
+  startYear,
+  endYear,
   selectedSpecies,
   selectedEcosystem,
 }: MapProps) {
@@ -40,12 +42,12 @@ export default function Map({
   const q4 = sorted[Math.floor(sorted.length * 0.8)] || 0;
 
   const getColor = (value: number) => {
-  if (value > q4) return "#7f0000";
-  if (value > q3) return "#970d0d";
-  if (value > q2) return "#892718";
-  if (value > q1) return "#fc8d59";
-  return "#fdd49e";
-};
+    if (value > q4) return "#7f0000";
+    if (value > q3) return "#970d0d";
+    if (value > q2) return "#892718";
+    if (value > q1) return "#fc8d59";
+    return "#fdd49e";
+  };
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("en-US", {
@@ -57,6 +59,7 @@ export default function Map({
 
   return (
     <MapContainer
+      key={JSON.stringify(geoData)}
       center={position}
       zoom={6.5}
       zoomControl={false}
@@ -96,7 +99,7 @@ export default function Map({
             <div style="font-size:13px">
               <strong>County: ${feature.properties.county}</strong><br/>
               Exchange Value: ${formatCurrency(value)}<br/>
-              Year: ${selectedYear ?? "All Years"}<br/>
+              Year: ${startYear ?? "All"} - ${endYear ?? "All"}<br/>
               Species: ${selectedSpecies || "All"}<br/>
               Ecosystem: ${selectedEcosystem || "All"}
             </div>

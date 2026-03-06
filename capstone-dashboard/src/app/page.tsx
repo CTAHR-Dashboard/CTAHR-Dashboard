@@ -6,5 +6,6 @@ export default function Home() {
       geoJsonPath="/fisheriesdata/marinecounties.geojson"
       datasetLabel="Fisheries"
     />
+    
   );
 }

@@ -1,16 +1,64 @@
+/* ================= MAIN DASHBOARD LAYOUT ================= */
+
+/* Main container holding sidebar + map/chart area */
 .dashboard-container {
   display: flex;
   height: 100vh;
   overflow: hidden;
 }
 
+/* Wrapper for map + charts area */
 .map-wrapper {
   flex: 1;
+
+  /* Grid layout for map card and chart card */
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+  gap: 20px;
+
+  padding: 20px;
   height: 100vh;
+  background: #0e0e0e;
 }
 
-/* ================= Sidebar ================= */
 
+/* ================= MAP + CHART CARDS ================= */
+
+/* Shared card styling for map and chart panels */
+.map-card,
+.chart-card {
+  background: #111;
+  border: 1px solid #1c1c1c;
+  border-radius: 12px;
+
+  padding: 12px;
+
+  display: flex;
+  flex-direction: column;
+
+  overflow: hidden;
+
+  /* subtle depth like modern dashboards */
+  box-shadow: 0 8px 30px rgba(0,0,0,0.35);
+}
+
+/* Map container inside card */
+.map-section {
+  flex: 1;
+  min-height: 400px;
+}
+
+/* Chart iframe fills the card */
+.chart-card iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+
+/* ================= SIDEBAR ================= */
+
+/* Entire sidebar container */
 .sidebar {
   width: 420px;
   background: #0e0e0e;
@@ -19,7 +67,10 @@
   border-right: 1px solid #1c1c1c;
 }
 
-/* Left tab rail */
+
+/* ================= SIDEBAR TAB RAIL ================= */
+
+/* Left vertical tab navigation */
 .sidebar-tabs {
   width: 180px;
   background: #0a0a0a;
@@ -28,7 +79,7 @@
   flex-direction: column;
 }
 
-/* Branding */
+/* Branding / title at top of tab rail */
 .tabs-header {
   padding: 22px 16px;
   font-size: 18px;
@@ -43,7 +94,10 @@
   margin-top: 4px;
 }
 
-/* Tabs */
+
+/* ================= TABS ================= */
+
+/* Individual tab buttons */
 .tab {
   position: relative;
   padding: 16px 16px 16px 20px;
@@ -62,6 +116,7 @@
   font-weight: 600;
 }
 
+/* Orange accent bar for active tab */
 .tab.active::before {
   content: "";
   position: absolute;
@@ -73,19 +128,25 @@
   transition: all 0.2s ease;
 }
 
-/* Right panel */
+
+/* ================= FILTER PANEL ================= */
+
+/* Right side of sidebar where filters appear */
 .sidebar-panel {
   flex: 1;
   padding: 28px;
+
   display: flex;
   flex-direction: column;
   gap: 24px;
+
   overflow-y: auto;
 
   animation: slideIn 0.25s ease forwards;
 }
 
-/* Slide animation */
+
+/* Slide animation when switching tabs */
 @keyframes slideIn {
   from {
     opacity: 0;
@@ -97,7 +158,10 @@
   }
 }
 
-/* Labels */
+
+/* ================= FILTER CONTROLS ================= */
+
+/* Filter labels */
 .filter-label {
   font-size: 12px;
   text-transform: uppercase;
@@ -106,7 +170,7 @@
   margin-bottom: 6px;
 }
 
-/* Dropdown */
+/* Dropdowns */
 .filter-select {
   width: 100%;
   background: #1a1a1a;
@@ -123,13 +187,17 @@
   box-shadow: 0 0 0 2px rgba(217, 72, 1, 0.25);
 }
 
-/* Button groups */
+
+/* ================= FILTER BUTTON GROUPS ================= */
+
+/* Group for pill buttons */
 .button-group {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
 
+/* Individual pill button */
 .filter-btn {
   background: #1a1a1a;
   color: #ffffff;
@@ -154,6 +222,10 @@
   outline: none;
 }
 
+
+/* ================= LEAFLET FIX ================= */
+
+/* Removes the blue focus outline when clicking map features */
 .leaflet-interactive:focus {
   outline: none;
 }

@@ -1,10 +1,16 @@
-// Main dashboard component that loads GeoJSON and CSV data, manages filter state, and renders the map and sidebar.
+// Main dashboard component that loads GeoJSON and CSV data,
+// manages filter state, and renders the map and sidebar.
+
 "use client";
 
 import { useEffect, useState } from "react";
-import Map from "../map/Map";
+import dynamic from "next/dynamic";
 import "./dashboard.css";
 import FilterSidebar from "./FilterSidebar";
+
+const Map = dynamic(() => import("../map/Map"), {
+  ssr: false,
+});
 
 interface DashboardProps {
   geoJsonPath: string;
@@ -23,72 +29,88 @@ export default function EcosystemDashboard({
   geoJsonPath,
   datasetLabel,
 }: DashboardProps) {
-  const [geoData, setGeoData] = useState<any>(null);
-  const [csvData, setCsvData] = useState<CsvRow[]>([]);
-  const [dataset, setDataset] = useState<"noncomm" | "comm">("noncomm");
 
-  const [selectedYear, setSelectedYear] = useState<number | null>(null);
+  // ---------------------------------------------
+  // STATE
+  // ---------------------------------------------
+
+  const [geoData, setGeoData] = useState<any>(null);
+
+  // store BOTH datasets
+  const [commercialData, setCommercialData] = useState<CsvRow[]>([]);
+  const [nonCommercialData, setNonCommercialData] = useState<CsvRow[]>([]);
+
+  // which dataset user selected
+  const [dataset, setDataset] = useState<"both" | "comm" | "noncomm">("both");
+
+  // filters
+  const [startYear, setStartYear] = useState<number | null>(null);
+  const [endYear, setEndYear] = useState<number | null>(null);
   const [selectedCounty, setSelectedCounty] = useState("");
   const [selectedSpecies, setSelectedSpecies] = useState("");
-  const [selectedEcosystem, setSelectedEcosystem] = useState("");
+  const [selectedEcosystem, setSelectedEcosystem] = useState("All Ecosystems");
 
-  // -------------------------------------------------
-  // LOAD GEOJSON + CSV (DATASET DEPENDENT)
-  // -------------------------------------------------
+  // ---------------------------------------------
+  // LOAD GEOJSON + CSV FILES
+  // ---------------------------------------------
+
   useEffect(() => {
+
     async function loadData() {
+
       const geoRes = await fetch(geoJsonPath);
       const geo = await geoRes.json();
 
-      const csvPath =
-        dataset === "noncomm"
-          ? "/fisheriesdata/20260216_tidied_noncomm_ev.csv"
-          : "/fisheriesdata/20260216_tidied_comm_ev.csv";
+      const commRes = await fetch("/fisheriesdata/cleaned_commercial_latest.csv");
+      const noncommRes = await fetch("/fisheriesdata/cleaned_noncommercial_latest.csv");
 
-      const csvRes = await fetch(csvPath);
-      const csvText = await csvRes.text();
+      const commText = await commRes.text();
+      const noncommText = await noncommRes.text();
 
-      const lines = csvText.split("\n").filter((r) => r.trim() !== "");
+      const parseCsv = (csvText: string): CsvRow[] => {
+
+      const lines = csvText.split("\n").filter(r => r.trim() !== "");
 
       const headers = lines[0].split(",").map((h) => h.replace(/"/g, "").trim());
+        const headers = lines[0]
+          .split(",")
+          .map(h => h.replace(/"/g, "").trim());
 
-      const parsed: CsvRow[] = lines.slice(1).map((line) => {
-        const values = line.split(",");
+        return lines.slice(1).map((line) => {
 
-        const row: any = {};
+          const values = line.split(",");
 
-        headers.forEach((header, index) => {
-          row[header] = values[index]?.replace(/"/g, "").trim();
+          const row: any = {};
+
+          headers.forEach((header, index) => {
+            row[header] = values[index]?.replace(/"/g, "").trim();
+          });
+
+          let county = row["county"];
+
+          // Normalize Lanai / Molokai into Maui
+          if (county === "Lanai" || county === "Molokai") {
+            county = "Maui";
+          }
+
+          return {
+            year: Number(row["year"]),
+            county,
+            species_group: row["species_group"],
+            ecosystem_type: row["ecosystem_type"],
+            exchange_value: Number(row["exchange_value"]) || 0,
+          };
         });
+      };
 
-        let county = row["county"];
-
-        // Normalize Lanai / Molokai into Maui
-        if (county === "Lanai" || county === "Molokai") {
-          county = "Maui";
-        }
-
-        return {
-          year: Number(row["year"]),
-          county,
-          species_group: row["species_group"],
-          ecosystem_type: row["ecosystem_type"],
-          exchange_value: Number(row["exchange_value"]) || 0,
-        };
-      });
-
+      setCommercialData(parseCsv(commText));
+      setNonCommercialData(parseCsv(noncommText));
       setGeoData(geo);
-      setCsvData(parsed);
-
-      // Reset filters when dataset changes
-      setSelectedCounty("");
-      setSelectedYear(null);
-      setSelectedSpecies("");
-      setSelectedEcosystem("");
     }
 
     loadData();
-  }, [geoJsonPath, dataset]);
+
+  }, [geoJsonPath]);
 
   if (!geoData) return <div>Loading {datasetLabel}...</div>;
 
@@ -100,31 +122,39 @@ export default function EcosystemDashboard({
   const speciesGroups = [...new Set(csvData.map((d) => d.species_group))];
   const ecosystemTypes = [...new Set(csvData.map((d) => d.ecosystem_type))];
 
-  // -------------------------------------------------
-  // APPLY FILTERS TO CSV
-  // -------------------------------------------------
+  // ---------------------------------------------
+  // APPLY FILTERS
+  // ---------------------------------------------
+
   const filteredRows = csvData.filter((row) => {
+
     return (
-      (selectedYear === null || row.year === selectedYear) &&
+      (startYear === null || row.year >= startYear) &&
+      (endYear === null || row.year <= endYear) &&
       (selectedCounty === "" || row.county === selectedCounty) &&
       (selectedSpecies === "" || row.species_group === selectedSpecies) &&
-      (selectedEcosystem === "" || row.ecosystem_type === selectedEcosystem)
+      (selectedEcosystem === "All Ecosystems" ||
+        row.ecosystem_type === selectedEcosystem)
     );
+
   });
 
-  // -------------------------------------------------
-  // AGGREGATE BY COUNTY
-  // -------------------------------------------------
+  // ---------------------------------------------
+  // AGGREGATE DATA BY COUNTY
+  // ---------------------------------------------
+
   const totalsByCounty: Record<string, number> = {};
 
   filteredRows.forEach((row) => {
     totalsByCounty[row.county] = (totalsByCounty[row.county] || 0) + row.exchange_value;
   });
 
-  // -------------------------------------------------
-  // ATTACH TOTALS TO GEOJSON
-  // -------------------------------------------------
+  // ---------------------------------------------
+  // ATTACH DATA TO GEOJSON
+  // ---------------------------------------------
+
   const aggregatedFeatures = geoData.features.map((feature: any) => {
+
     const county = feature.properties.county;
 
     return {
@@ -134,6 +164,7 @@ export default function EcosystemDashboard({
         total_exchange_value: totalsByCounty[county] || 0,
       },
     };
+
   });
 
   const aggregatedGeoJSON = {
@@ -222,7 +253,9 @@ export default function EcosystemDashboard({
   };
 
   return (
+
     <div className="dashboard-container">
+
       <FilterSidebar
         dataset={dataset}
         setDataset={setDataset}
@@ -231,25 +264,49 @@ export default function EcosystemDashboard({
         speciesGroups={speciesGroups}
         ecosystemTypes={ecosystemTypes}
         selectedCounty={selectedCounty}
-        selectedYear={selectedYear}
+        startYear={startYear}
+        endYear={endYear}
         selectedSpecies={selectedSpecies}
         selectedEcosystem={selectedEcosystem}
         setSelectedCounty={setSelectedCounty}
-        setSelectedYear={setSelectedYear}
+        setStartYear={setStartYear}
+        setEndYear={setEndYear}
         setSelectedSpecies={setSelectedSpecies}
         setSelectedEcosystem={setSelectedEcosystem}
         onDownload={handleDownload}
       />
 
       <div className="map-wrapper">
-        <Map
-          geoData={aggregatedGeoJSON}
-          selectedCounty={selectedCounty}
-          selectedYear={selectedYear}
-          selectedSpecies={selectedSpecies}
-          selectedEcosystem={selectedEcosystem}
-        />
+
+        <div className="map-card">
+
+          <div className="map-section">
+            <Map
+              geoData={aggregatedGeoJSON}
+              selectedCounty={selectedCounty}
+              startYear={startYear}
+              endYear={endYear}
+              selectedSpecies={selectedSpecies}
+              selectedEcosystem={selectedEcosystem}
+            />
+          </div>
+
+        </div>
+
+        <div className="chart-card">
+          <iframe
+            src="/chartcomponent/dashboard_20260304.html"
+            style={{
+              width: "100%",
+              height: "100%",
+              border: "none",
+            }}
+          />
+        </div>
+
       </div>
+
     </div>
+
   );
 }

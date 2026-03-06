@@ -59,7 +59,6 @@ export default function Map({
 
   return (
     <MapContainer
-      key={JSON.stringify(geoData)}
       center={position}
       zoom={6.5}
       zoomControl={false}

@@ -6,7 +6,6 @@
 
 import "./dashboard.css";
 import Image from "next/image";
-import { useState } from "react";
 
 interface FilterSidebarProps {
   dataset: "both" | "noncomm" | "comm";
@@ -28,7 +27,6 @@ interface FilterSidebarProps {
   setEndYear: (val: number | null) => void;
   setSelectedSpecies: (val: string) => void;
   setSelectedEcosystem: (val: string) => void;
-  onDownload: (downloadMode: "ALL_SEPARATE" | "ONE_COUNTY", county?: string) => void;
 }
 
 export default function FilterSidebar({
@@ -48,12 +46,7 @@ export default function FilterSidebar({
   setEndYear,
   setSelectedSpecies,
   setSelectedEcosystem,
-  onDownload,
 }: FilterSidebarProps) {
-
-  // controls the download dropdown (separate from your map filters)
-  const [downloadCounty, setDownloadCounty] = useState<string>("");
-  const [downloadMode, setDownloadMode] = useState<"ALL_SEPARATE" | "ONE_COUNTY">("ONE_COUNTY");
 
   return (
     <div className="sidebar">
@@ -263,18 +256,6 @@ export default function FilterSidebar({
 
           <div className="button-group">
 
-            <button
-              type="button"
-              className={
-                selectedEcosystem === "All Ecosystems"
-                  ? "filter-btn active"
-                  : "filter-btn"
-              }
-              onClick={() => setSelectedEcosystem("All Ecosystems")}
-            >
-              All
-            </button>
-
             {ecosystemTypes.map((eType) => (
 
               <button
@@ -294,49 +275,6 @@ export default function FilterSidebar({
 
           </div>
 
-        </div>
-        
-        {/* DOWNLOAD CONTROLS */}
-        <div style={{ marginTop: 16 }}>
-          <div className="filter-label">Download</div>
-
-          <select
-            className="filter-select"
-            value={downloadMode}
-            onChange={(e) => setDownloadMode(e.target.value as any)}
-          >
-            <option value="ONE_COUNTY">One county</option>
-            <option value="ALL_SEPARATE">All counties (separate files)</option>
-          </select>
-
-          {downloadMode === "ONE_COUNTY" && (
-            <select
-              className="filter-select"
-              value={downloadCounty}
-              onChange={(e) => setDownloadCounty(e.target.value)}
-              style={{ marginTop: 8 }}
-            >
-              <option value="">Choose a county…</option>
-              {counties.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          )}
-
-          <button
-            type="button"
-            className="filter-btn"
-            style={{ marginTop: 10 }}
-            onClick={() => {
-              console.log("Sidebar button clicked:", downloadMode, downloadCounty);
-              onDownload(downloadMode,downloadMode === "ONE_COUNTY" ? downloadCounty : undefined);
-            }}
-            disabled={downloadMode === "ONE_COUNTY" && !downloadCounty}
-          >
-            Download CSV
-          </button>
         </div>
 
 

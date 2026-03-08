@@ -1,9 +1,5 @@
-// Side bar component for dataset selection and filtering. 
-// Contains dataset toggle, county/year dropdowns, and species/ecosystem button groups. 
-// Updates parent state on user interaction to trigger map updates.
 "use client";
-import "./dashboard.css";
-import Image from "next/image";
+
 import { useState } from "react";
 
 interface FilterSidebarProps {
@@ -41,23 +37,18 @@ export default function FilterSidebar({
   setSelectedEcosystem,
   onDownload,
 }: FilterSidebarProps) {
-
-  // controls the download dropdown (separate from your map filters)
   const [downloadCounty, setDownloadCounty] = useState<string>("");
   const [downloadMode, setDownloadMode] = useState<"ALL_SEPARATE" | "ONE_COUNTY">("ONE_COUNTY");
 
   return (
     <div className="sidebar">
 
-      {/* LEFT TAB COLUMN */}
+      {/* Left tab rail */}
       <div className="sidebar-tabs">
-
         <div className="tabs-header">
-          <Image src="/icon.png" alt="Lab Icon" width={150} height={32} />
-          Hawaiʻi
-          <div className="tabs-subtitle">
-            Ecosystem Accounts
-          </div>
+          <img src="/logo.png" alt="Oleson Lab" className="sidebar-logo" />
+          <div className="sidebar-title">Hawaiʻi</div>
+          <div className="sidebar-subtitle">Ecosystem Accounts</div>
         </div>
 
         <div
@@ -73,19 +64,18 @@ export default function FilterSidebar({
         >
           Commercial Fishery Values
         </div>
-
       </div>
 
-      {/* RIGHT PANEL */}
+      {/* Right filter panel */}
       <div className="sidebar-panel">
 
-        {/* COUNTY */}
+        {/* County */}
         <div>
           <div className="filter-label">County</div>
           <select
-            className="filter-select"
             value={selectedCounty}
             onChange={(e) => setSelectedCounty(e.target.value)}
+            className="filter-select"
           >
             <option value="">All Counties</option>
             {counties.map((c) => (
@@ -94,17 +84,15 @@ export default function FilterSidebar({
           </select>
         </div>
 
-        {/* YEAR */}
+        {/* Year */}
         <div>
           <div className="filter-label">Year</div>
           <select
-            className="filter-select"
             value={selectedYear ?? ""}
             onChange={(e) =>
-              setSelectedYear(
-                e.target.value === "" ? null : Number(e.target.value)
-              )
+              setSelectedYear(e.target.value === "" ? null : Number(e.target.value))
             }
+            className="filter-select"
           >
             <option value="">All Years</option>
             {years.map((y) => (
@@ -113,76 +101,58 @@ export default function FilterSidebar({
           </select>
         </div>
 
-        {/* SPECIES BUTTON GROUP */}
+        {/* Species Group */}
         <div>
           <div className="filter-label">Species Group</div>
           <div className="button-group">
-
             <button
-              type="button"
-              className={selectedSpecies === "" ? "filter-btn active" : "filter-btn"}
+              className={`filter-btn ${selectedSpecies === "" ? "active" : ""}`}
               onClick={() => setSelectedSpecies("")}
             >
               All
             </button>
-
-            {speciesGroups.map((s) => (
+            {speciesGroups.map((o) => (
               <button
-                type="button"
-                key={s}
-                className={
-                  selectedSpecies === s
-                    ? "filter-btn active"
-                    : "filter-btn"
-                }
-                onClick={() => setSelectedSpecies(s)}
+                key={o}
+                className={`filter-btn ${selectedSpecies === o ? "active" : ""}`}
+                onClick={() => setSelectedSpecies(o)}
               >
-                {s}
+                {o}
               </button>
             ))}
-
           </div>
         </div>
 
-        {/* ECOSYSTEM BUTTON GROUP */}
+        {/* Ecosystem Type */}
         <div>
           <div className="filter-label">Ecosystem Type</div>
           <div className="button-group">
-
             <button
-              type="button"
-              className={selectedEcosystem === "" ? "filter-btn active" : "filter-btn"}
+              className={`filter-btn ${selectedEcosystem === "" ? "active" : ""}`}
               onClick={() => setSelectedEcosystem("")}
             >
               All
             </button>
-
-            {ecosystemTypes.map((eType) => (
+            {ecosystemTypes.map((o) => (
               <button
-                type="button"
-                key={eType}
-                className={
-                  selectedEcosystem === eType
-                    ? "filter-btn active"
-                    : "filter-btn"
-                }
-                onClick={() => setSelectedEcosystem(eType)}
+                key={o}
+                className={`filter-btn ${selectedEcosystem === o ? "active" : ""}`}
+                onClick={() => setSelectedEcosystem(o)}
               >
-                {eType}
+                {o}
               </button>
             ))}
-
           </div>
         </div>
-        
-        {/* DOWNLOAD CONTROLS */}
+
+        {/* Download */}
         <div style={{ marginTop: 16 }}>
           <div className="filter-label">Download</div>
 
           <select
             className="filter-select"
             value={downloadMode}
-            onChange={(e) => setDownloadMode(e.target.value as any)}
+            onChange={(e) => setDownloadMode(e.target.value as "ALL_SEPARATE" | "ONE_COUNTY")}
           >
             <option value="ONE_COUNTY">One county</option>
             <option value="ALL_SEPARATE">All counties (separate files)</option>
@@ -197,9 +167,7 @@ export default function FilterSidebar({
             >
               <option value="">Choose a county…</option>
               {counties.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
+                <option key={c} value={c}>{c}</option>
               ))}
             </select>
           )}
@@ -208,10 +176,7 @@ export default function FilterSidebar({
             type="button"
             className="filter-btn"
             style={{ marginTop: 10 }}
-            onClick={() => {
-              console.log("Sidebar button clicked:", downloadMode, downloadCounty);
-              onDownload(downloadMode,downloadMode === "ONE_COUNTY" ? downloadCounty : undefined);
-            }}
+            onClick={() => onDownload(downloadMode, downloadMode === "ONE_COUNTY" ? downloadCounty : undefined)}
             disabled={downloadMode === "ONE_COUNTY" && !downloadCounty}
           >
             Download CSV

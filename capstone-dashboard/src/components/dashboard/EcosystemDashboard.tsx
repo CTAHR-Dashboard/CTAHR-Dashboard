@@ -147,23 +147,7 @@ export default function EcosystemDashboard({
     setSelectedCounty(selectedCounty === county ? "" : county);
   };
 
-  const handleDownload = (scope: "filtered" | "all") => {
-    const rows = scope === "filtered" ? filteredRows : csvData;
-    const headers = ["year", "county", "species_group", "ecosystem_type", "exchange_value"];
-    const csvContent = [
-      headers.join(","),
-      ...rows.map((r) => [r.year, r.county, r.species_group, r.ecosystem_type, r.exchange_value].join(",")),
-    ].join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `hawaii_fisheries_${dataset}_${scope}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  // roll up filtered rows for the bar charts in the data panel
+// roll up filtered rows for the bar charts in the data panel
   const byYear: Record<number, number> = {};
   const bySpecies: Record<string, number> = {};
   const byEcosystem: Record<string, number> = {};
@@ -211,7 +195,6 @@ export default function EcosystemDashboard({
         setSelectedYear={setSelectedYear}
         setSelectedSpecies={setSelectedSpecies}
         setSelectedEcosystem={setSelectedEcosystem}
-        onDownload={handleDownload}
       />
 
       <div className="map-wrapper">

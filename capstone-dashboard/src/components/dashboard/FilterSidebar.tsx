@@ -1,7 +1,5 @@
 "use client";
 
-import { useState } from "react";
-
 interface FilterSidebarProps {
   dataset: "noncomm" | "comm";
   setDataset: (val: "noncomm" | "comm") => void;
@@ -17,7 +15,6 @@ interface FilterSidebarProps {
   setSelectedYear: (val: number | null) => void;
   setSelectedSpecies: (val: string) => void;
   setSelectedEcosystem: (val: string) => void;
-  onDownload: (scope: "filtered" | "all") => void;
 }
 
 export default function FilterSidebar({
@@ -35,9 +32,7 @@ export default function FilterSidebar({
   setSelectedYear,
   setSelectedSpecies,
   setSelectedEcosystem,
-  onDownload,
 }: FilterSidebarProps) {
-  const [downloadScope, setDownloadScope] = useState<"filtered" | "all">("filtered");
 
   return (
     <div className="sidebar">
@@ -143,22 +138,6 @@ export default function FilterSidebar({
               </button>
             ))}
           </div>
-        </div>
-
-        {/* Download */}
-        <div>
-          <div className="filter-label">Download</div>
-          <select
-            value={downloadScope}
-            onChange={(e) => setDownloadScope(e.target.value as "filtered" | "all")}
-            className="filter-select"
-          >
-            <option value="filtered">Current filter (single file)</option>
-            <option value="all">All data (single file)</option>
-          </select>
-          <button className="download-btn" onClick={() => onDownload(downloadScope)}>
-            Download CSV
-          </button>
         </div>
 
       </div>

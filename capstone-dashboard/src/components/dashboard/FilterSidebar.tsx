@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 interface FilterSidebarProps {
   dataset: "noncomm" | "comm";
   setDataset: (val: "noncomm" | "comm") => void;
@@ -15,6 +17,7 @@ interface FilterSidebarProps {
   setSelectedYear: (val: number | null) => void;
   setSelectedSpecies: (val: string) => void;
   setSelectedEcosystem: (val: string) => void;
+  onDownload: (scope: "filtered" | "all") => void;
 }
 
 export default function FilterSidebar({
@@ -32,47 +35,47 @@ export default function FilterSidebar({
   setSelectedYear,
   setSelectedSpecies,
   setSelectedEcosystem,
+  onDownload,
 }: FilterSidebarProps) {
-  return (
-    <div className="w-72 bg-white shadow-lg rounded-lg p-4 flex flex-col gap-6">
-      
-      {/* Header */}
-      <div className="flex flex-col gap-1">
-        <h1 className="text-lg font-bold">Hawaiʻi</h1>
-        <p className="text-sm text-gray-500">Ecosystem Accounts</p>
-      </div>
+  const [downloadScope, setDownloadScope] = useState<"filtered" | "all">("filtered");
 
-      {/* Dataset Tabs */}
-      <div className="flex flex-col gap-2">
-        <button
-          className={`px-3 py-2 rounded ${
-            dataset === "noncomm" ? "bg-blue-500 text-white font-semibold" : "bg-gray-100 text-gray-700"
-          }`}
+  return (
+    <div className="sidebar">
+
+      {/* Left tab rail */}
+      <div className="sidebar-tabs">
+        <div className="tabs-header">
+          {/* Drop your logo at public/logo.png */}
+          <img src="/logo.png" alt="Oleson Lab" className="sidebar-logo" />
+          <div className="sidebar-title">Hawaiʻi</div>
+          <div className="sidebar-subtitle">Ecosystem Accounts</div>
+        </div>
+
+        <div
+          className={`tab ${dataset === "noncomm" ? "active" : ""}`}
           onClick={() => setDataset("noncomm")}
         >
           Non-Commercial Fishery Values
-        </button>
+        </div>
 
-        <button
-          className={`px-3 py-2 rounded ${
-            dataset === "comm" ? "bg-blue-500 text-white font-semibold" : "bg-gray-100 text-gray-700"
-          }`}
+        <div
+          className={`tab ${dataset === "comm" ? "active" : ""}`}
           onClick={() => setDataset("comm")}
         >
           Commercial Fishery Values
-        </button>
+        </div>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-col gap-4">
+      {/* Right filter panel */}
+      <div className="sidebar-panel">
 
         {/* County */}
-        <div className="flex flex-col">
-          <label className="text-sm font-medium mb-1">County</label>
+        <div>
+          <div className="filter-label">County</div>
           <select
             value={selectedCounty}
             onChange={(e) => setSelectedCounty(e.target.value)}
-            className="border border-gray-300 rounded px-2 py-1"
+            className="filter-select"
           >
             <option value="">All Counties</option>
             {counties.map((c) => (
@@ -82,14 +85,14 @@ export default function FilterSidebar({
         </div>
 
         {/* Year */}
-        <div className="flex flex-col">
-          <label className="text-sm font-medium mb-1">Year</label>
+        <div>
+          <div className="filter-label">Year</div>
           <select
             value={selectedYear ?? ""}
             onChange={(e) =>
               setSelectedYear(e.target.value === "" ? null : Number(e.target.value))
             }
-            className="border border-gray-300 rounded px-2 py-1"
+            className="filter-select"
           >
             <option value="">All Years</option>
             {years.map((y) => (
@@ -99,59 +102,66 @@ export default function FilterSidebar({
         </div>
 
         {/* Species Group */}
-        <ButtonGroup
-          label="Species Group"
-          options={speciesGroups}
-          selected={selectedSpecies}
-          setSelected={setSelectedSpecies}
-        />
+        <div>
+          <div className="filter-label">Species Group</div>
+          <div className="button-group">
+            <button
+              className={`filter-btn ${selectedSpecies === "" ? "active" : ""}`}
+              onClick={() => setSelectedSpecies("")}
+            >
+              All
+            </button>
+            {speciesGroups.map((o) => (
+              <button
+                key={o}
+                className={`filter-btn ${selectedSpecies === o ? "active" : ""}`}
+                onClick={() => setSelectedSpecies(o)}
+              >
+                {o}
+              </button>
+            ))}
+          </div>
+        </div>
 
         {/* Ecosystem Type */}
-        <ButtonGroup
-          label="Ecosystem Type"
-          options={ecosystemTypes}
-          selected={selectedEcosystem}
-          setSelected={setSelectedEcosystem}
-        />
+        <div>
+          <div className="filter-label">Ecosystem Type</div>
+          <div className="button-group">
+            <button
+              className={`filter-btn ${selectedEcosystem === "" ? "active" : ""}`}
+              onClick={() => setSelectedEcosystem("")}
+            >
+              All
+            </button>
+            {ecosystemTypes.map((o) => (
+              <button
+                key={o}
+                className={`filter-btn ${selectedEcosystem === o ? "active" : ""}`}
+                onClick={() => setSelectedEcosystem(o)}
+              >
+                {o}
+              </button>
+            ))}
+          </div>
+        </div>
 
-      </div>
-    </div>
-  );
-}
-
-interface ButtonGroupProps {
-  label: string;
-  options: string[];
-  selected: string;
-  setSelected: (val: string) => void;
-}
-
-function ButtonGroup({ label, options, selected, setSelected }: ButtonGroupProps) {
-  return (
-    <div>
-      <p className="text-sm font-medium mb-1">{label}</p>
-      <div className="flex flex-wrap gap-2">
-        <button
-          className={`px-3 py-1 rounded ${
-            selected === "" ? "bg-blue-500 text-white" : "bg-gray-100"
-          }`}
-          onClick={() => setSelected("")}
-        >
-          All
-        </button>
-        {options.map((o) => (
-          <button
-            key={o}
-            className={`px-3 py-1 rounded ${
-              selected === o ? "bg-blue-500 text-white" : "bg-gray-100"
-            }`}
-            onClick={() => setSelected(o)}
+        {/* Download */}
+        <div>
+          <div className="filter-label">Download</div>
+          <select
+            value={downloadScope}
+            onChange={(e) => setDownloadScope(e.target.value as "filtered" | "all")}
+            className="filter-select"
           >
-            {o}
+            <option value="filtered">Current filter (single file)</option>
+            <option value="all">All data (single file)</option>
+          </select>
+          <button className="download-btn" onClick={() => onDownload(downloadScope)}>
+            Download CSV
           </button>
-        ))}
+        </div>
+
       </div>
     </div>
   );
 }
-

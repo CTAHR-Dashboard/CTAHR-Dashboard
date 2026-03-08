@@ -12,6 +12,7 @@ interface MapProps {
   selectedYear: number | null;
   selectedSpecies: string;
   selectedEcosystem: string;
+  onCountyClick?: (county: string) => void;
 }
 
 export default function Map({
@@ -20,6 +21,7 @@ export default function Map({
   selectedYear,
   selectedSpecies,
   selectedEcosystem,
+  onCountyClick,
 }: MapProps) {
   const position: LatLngExpression = [20.81, -158.75];
 
@@ -40,12 +42,12 @@ export default function Map({
   const q4 = sorted[Math.floor(sorted.length * 0.8)] || 0;
 
   const getColor = (value: number) => {
-  if (value > q4) return "#7f0000";
-  if (value > q3) return "#970d0d";
-  if (value > q2) return "#892718";
-  if (value > q1) return "#fc8d59";
-  return "#fdd49e";
-};
+    if (value > q4) return "#7f0000";
+    if (value > q3) return "#970d0d";
+    if (value > q2) return "#892718";
+    if (value > q1) return "#fc8d59";
+    return "#fdd49e";
+  };
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("en-US", {
@@ -105,6 +107,9 @@ export default function Map({
           layer.bindTooltip(tooltipContent, { sticky: true });
 
           layer.on({
+            click: () => {
+              onCountyClick?.(feature.properties.county);
+            },
             mouseover: (e: any) => {
               e.target.setStyle({ fillOpacity: 0.8 });
             },

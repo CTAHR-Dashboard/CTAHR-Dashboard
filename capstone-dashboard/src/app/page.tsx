@@ -1,5 +1,5 @@
 import EcosystemDashboard from "@/components/dashboard/EcosystemDashboard";
-import CommFisheriesDashboard from "@/components/dashboard/commFisheriesDashboard";
+import CommFisheriesDashboard from "@/components/dashboard/commFisheriesMap";
 
 export default function Home() {
   return (

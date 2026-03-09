@@ -233,16 +233,18 @@ export default function EcosystemDashboard({
 
   const yearEntries = Object.entries(byYear)
     .map(([k, v]) => [Number(k), v] as [number, number])
+    .filter(([, v]) => v > 0)
     .sort(([a], [b]) => a - b);
 
-  const speciesEntries = Object.entries(bySpecies).sort(([, a], [, b]) => b - a);
-  const ecosystemEntries = Object.entries(byEcosystem).sort(([, a], [, b]) => b - a);
+  const speciesEntries = Object.entries(bySpecies).filter(([, v]) => v > 0).sort(([, a], [, b]) => b - a);
+  const ecosystemEntries = Object.entries(byEcosystem).filter(([, v]) => v > 0).sort(([, a], [, b]) => b - a);
 
   const maxYear = Math.max(...yearEntries.map(([, v]) => v), 1);
   const maxSpecies = Math.max(...speciesEntries.map(([, v]) => v), 1);
   const maxEco = Math.max(...ecosystemEntries.map(([, v]) => v), 1);
 
   const tableRows = filteredRows
+    .filter((r) => r.exchange_value > 0)
     .slice()
     .sort((a, b) => a.year !== b.year ? a.year - b.year : a.species_group.localeCompare(b.species_group));
 

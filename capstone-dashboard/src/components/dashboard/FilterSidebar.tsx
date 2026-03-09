@@ -98,7 +98,7 @@ export default function FilterSidebar({
               className="filter-select"
             >
               <option value="">Start</option>
-              {years.map((y) => (
+              {years.filter((y) => selectedYearEnd === null || y <= selectedYearEnd).map((y) => (
                 <option key={y} value={y}>{y}</option>
               ))}
             </select>
@@ -109,7 +109,7 @@ export default function FilterSidebar({
               className="filter-select"
             >
               <option value="">End</option>
-              {years.map((y) => (
+              {years.filter((y) => selectedYearStart === null || y >= selectedYearStart).map((y) => (
                 <option key={y} value={y}>{y}</option>
               ))}
             </select>

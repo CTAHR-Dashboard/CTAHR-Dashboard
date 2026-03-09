@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import Map from "../map/Map";
 import "./dashboard.css";
 import FilterSidebar from "./FilterSidebar";
+import CommFisheriesDashboard from "./commFisheriesMap";
 
 interface DashboardProps {
   geoJsonPath: string;
@@ -240,17 +241,21 @@ export default function EcosystemDashboard({
         setSelectedEcosystem={setSelectedEcosystem}
         onDownload={handleDownload}
       />
-
-      <div className="map-wrapper">
-        <Map
-          mapType="noncomm"
-          geoData={aggregatedGeoJSON}
-          selectedCounty={selectedCounty}
-          selectedYear={selectedYear}
-          selectedSpecies={selectedSpecies}
-          selectedEcosystem={selectedEcosystem}
-        />
-      </div>
+      
+      {(dataset == "noncomm") ? (
+        <div className="map-wrapper">
+          <Map
+            mapType="noncomm"
+            geoData={aggregatedGeoJSON}
+            selectedCounty={selectedCounty}
+            selectedYear={selectedYear}
+            selectedSpecies={selectedSpecies}
+            selectedEcosystem={selectedEcosystem}
+          />
+        </div>) : (
+          <CommFisheriesDashboard />
+        )
+      }
     </div>
   );
 }

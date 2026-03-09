@@ -90,7 +90,7 @@ export default function Map({
 
   return (
     <div style = {{ height: "100vh" }}>
-      {mapType == "comm" && <p>Filters applied: Year=<b>{selectedYear}</b>, Species=<b>{selectedSpecies}</b>, Ecosystem=<b>{selectedEcosystem}</b></p>}
+      {mapType == "comm" && <p style={{color: "red"}}>Filters applied: Year=<b>{selectedYear}</b>, Species=<b>{selectedSpecies}</b>, Ecosystem=<b>{selectedEcosystem}</b> <br></br>NOTE: filters do not work on this one!</p>}
       <MapContainer
         center={position}
         zoom={6.5}
@@ -139,6 +139,7 @@ export default function Map({
           onEachFeature={(feature: any, layer: any) => {
             let value, tooltipContent;
             if (mapType == "noncomm") {
+              // if it's non-commercial - this is Pelita's code.
               value = feature.properties.total_exchange_value || 0;
               tooltipContent = `
                 <div style="font-size:13px">
@@ -150,8 +151,8 @@ export default function Map({
                 </div>
               `
             } else {
+              // if it's commercial - this is Micaiah's code.
               value = retrieveCommValues(feature)
-              console.log("the value is: " + value)
               tooltipContent = `
                 <div style="font-size:13px">
                   <strong>Moku: ${feature.properties.area_id}</strong><br/>

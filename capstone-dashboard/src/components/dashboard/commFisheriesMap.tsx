@@ -21,8 +21,7 @@ export default function CommFisheriesDashboard() {
     }, [])
 
     return(
-
-        <div>
+        <div style={{height: "100vh"}}>
             {dataLoaded && <Map
                 mapType='comm'
                 geoData={jsonData}

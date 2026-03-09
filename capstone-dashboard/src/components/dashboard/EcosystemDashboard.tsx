@@ -165,6 +165,7 @@ export default function EcosystemDashboard({
 
       <div className="map-wrapper">
         <Map
+          mapType="noncomm"
           geoData={aggregatedGeoJSON}
           selectedCounty={selectedCounty}
           selectedYear={selectedYear}

@@ -25,6 +25,7 @@ export default function EcosystemDashboard({
   datasetLabel,
 }: DashboardProps) {
   const [geoData, setGeoData] = useState<any>(null);
+  const [geoDataComm, setGeoDataComm] = useState<any>(null)
   const [csvData, setCsvData] = useState<CsvRow[]>([]);
   const [dataset, setDataset] = useState<"noncomm" | "comm">("noncomm");
 
@@ -38,54 +39,66 @@ export default function EcosystemDashboard({
   // -------------------------------------------------
   useEffect(() => {
     async function loadData() {
-      const geoRes = await fetch(geoJsonPath);
-      const geo = await geoRes.json();
 
-      const csvPath =
-        dataset === "noncomm"
-          ? "/fisheriesdata/20260216_tidied_noncomm_ev.csv"
-          : "/fisheriesdata/20260216_tidied_comm_ev.csv";
+      if (dataset == "noncomm") {
+        const geoRes = await fetch(geoJsonPath);
+        const geo = await geoRes.json();
 
-      const csvRes = await fetch(csvPath);
-      const csvText = await csvRes.text();
+        const csvPath =
+          dataset === "noncomm"
+            ? "/fisheriesdata/20260216_tidied_noncomm_ev.csv"
+            : "/fisheriesdata/20260216_tidied_comm_ev.csv";
 
-      const lines = csvText.split("\n").filter((r) => r.trim() !== "");
+        const csvRes = await fetch(csvPath);
+        const csvText = await csvRes.text();
 
-      const headers = lines[0].split(",").map((h) => h.replace(/"/g, "").trim());
+        const lines = csvText.split("\n").filter((r) => r.trim() !== "");
 
-      const parsed: CsvRow[] = lines.slice(1).map((line) => {
-        const values = line.split(",");
+        const headers = lines[0].split(",").map((h) => h.replace(/"/g, "").trim());
 
-        const row: any = {};
+        const parsed: CsvRow[] = lines.slice(1).map((line) => {
+          const values = line.split(",");
 
-        headers.forEach((header, index) => {
-          row[header] = values[index]?.replace(/"/g, "").trim();
+          const row: any = {};
+
+          headers.forEach((header, index) => {
+            row[header] = values[index]?.replace(/"/g, "").trim();
+          });
+
+          let county = row["county"];
+
+          // Normalize Lanai / Molokai into Maui
+          if (county === "Lanai" || county === "Molokai") {
+            county = "Maui";
+          }
+
+          return {
+            year: Number(row["year"]),
+            county,
+            species_group: row["species_group"],
+            ecosystem_type: row["ecosystem_type"],
+            exchange_value: Number(row["exchange_value"]) || 0,
+          };
         });
 
-        let county = row["county"];
+        setGeoData(geo);
+        setCsvData(parsed);
 
-        // Normalize Lanai / Molokai into Maui
-        if (county === "Lanai" || county === "Molokai") {
-          county = "Maui";
-        }
+        // Reset filters when dataset changes
+        setSelectedCounty("");
+        setSelectedYear(null);
+        setSelectedSpecies("");
+        setSelectedEcosystem("");
+      } else if (dataset == "comm") {
 
-        return {
-          year: Number(row["year"]),
-          county,
-          species_group: row["species_group"],
-          ecosystem_type: row["ecosystem_type"],
-          exchange_value: Number(row["exchange_value"]) || 0,
-        };
-      });
-
-      setGeoData(geo);
-      setCsvData(parsed);
-
-      // Reset filters when dataset changes
-      setSelectedCounty("");
-      setSelectedYear(null);
-      setSelectedSpecies("");
-      setSelectedEcosystem("");
+        // simply fetch the geojson! everything is aggreated
+        fetch("fisheriesdata/20260126_comm_ev_byMoku.geojson")
+        .then((response) => response.json())
+        .then((data) => {
+            setGeoDataComm(data)
+            console.log(data)
+        })
+      }
     }
 
     loadData();
@@ -253,7 +266,9 @@ export default function EcosystemDashboard({
             selectedEcosystem={selectedEcosystem}
           />
         </div>) : (
-          <CommFisheriesDashboard />
+          <div className="map-wrapper">
+            <CommFisheriesDashboard />
+          </div>
         )
       }
     </div>

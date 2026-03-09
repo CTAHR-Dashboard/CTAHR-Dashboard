@@ -29,7 +29,8 @@ export default function EcosystemDashboard({
   const [csvData, setCsvData] = useState<CsvRow[]>([]);
   const [dataset, setDataset] = useState<"noncomm" | "comm">("noncomm");
 
-  const [selectedYear, setSelectedYear] = useState<number | null>(null);
+  const [selectedYearStart, setSelectedYearStart] = useState<number | null>(null);
+  const [selectedYearEnd, setSelectedYearEnd] = useState<number | null>(null);
   const [selectedCounty, setSelectedCounty] = useState("");
   const [selectedSpecies, setSelectedSpecies] = useState("");
   const [selectedEcosystem, setSelectedEcosystem] = useState("");
@@ -82,7 +83,8 @@ export default function EcosystemDashboard({
 
       // Reset filters when dataset changes
       setSelectedCounty("");
-      setSelectedYear(null);
+      setSelectedYearStart(null);
+      setSelectedYearEnd(null);
       setSelectedSpecies("");
       setSelectedEcosystem("");
     }
@@ -101,7 +103,8 @@ export default function EcosystemDashboard({
   // apply active filters
   const filteredRows = csvData.filter((row) => {
     return (
-      (selectedYear === null || row.year === selectedYear) &&
+      (selectedYearStart === null || row.year >= selectedYearStart) &&
+      (selectedYearEnd === null || row.year <= selectedYearEnd) &&
       (selectedCounty === "" || row.county === selectedCounty) &&
       (selectedSpecies === "" || row.species_group === selectedSpecies) &&
       (selectedEcosystem === "" || row.ecosystem_type === selectedEcosystem)
@@ -181,8 +184,12 @@ export default function EcosystemDashboard({
   ) => {
     const safe = (s: string) => s.replace(/[^\w\-]+/g, "_");
 
+    const yearLabel = selectedYearStart || selectedYearEnd
+      ? `${selectedYearStart ?? "start"}-${selectedYearEnd ?? "end"}`
+      : "all-years";
+
     const filenameBaseParts = [
-      selectedYear ?? "all-years",
+      yearLabel,
       selectedSpecies || "all-species",
       selectedEcosystem || "all-ecosystems",
     ];
@@ -260,11 +267,13 @@ export default function EcosystemDashboard({
         speciesGroups={speciesGroups}
         ecosystemTypes={ecosystemTypes}
         selectedCounty={selectedCounty}
-        selectedYear={selectedYear}
+        selectedYearStart={selectedYearStart}
+        selectedYearEnd={selectedYearEnd}
         selectedSpecies={selectedSpecies}
         selectedEcosystem={selectedEcosystem}
         setSelectedCounty={setSelectedCounty}
-        setSelectedYear={setSelectedYear}
+        setSelectedYearStart={setSelectedYearStart}
+        setSelectedYearEnd={setSelectedYearEnd}
         setSelectedSpecies={setSelectedSpecies}
         setSelectedEcosystem={setSelectedEcosystem}
         onDownload={handleDownload}
@@ -274,7 +283,8 @@ export default function EcosystemDashboard({
         <Map
           geoData={aggregatedGeoJSON}
           selectedCounty={selectedCounty}
-          selectedYear={selectedYear}
+          selectedYearStart={selectedYearStart}
+          selectedYearEnd={selectedYearEnd}
           selectedSpecies={selectedSpecies}
           selectedEcosystem={selectedEcosystem}
           onCountyClick={handleCountyClick}

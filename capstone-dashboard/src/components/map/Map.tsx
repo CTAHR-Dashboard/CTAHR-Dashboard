@@ -9,7 +9,8 @@ import { useMemo } from "react";
 interface MapProps {
   geoData: any;
   selectedCounty: string;
-  selectedYear: number | null;
+  selectedYearStart: number | null;
+  selectedYearEnd: number | null;
   selectedSpecies: string;
   selectedEcosystem: string;
   onCountyClick?: (county: string) => void;
@@ -18,7 +19,8 @@ interface MapProps {
 export default function Map({
   geoData,
   selectedCounty,
-  selectedYear,
+  selectedYearStart,
+  selectedYearEnd,
   selectedSpecies,
   selectedEcosystem,
   onCountyClick,
@@ -98,7 +100,7 @@ export default function Map({
             <div style="font-size:13px">
               <strong>County: ${feature.properties.county}</strong><br/>
               Exchange Value: ${formatCurrency(value)}<br/>
-              Year: ${selectedYear ?? "All Years"}<br/>
+              Year: ${selectedYearStart || selectedYearEnd ? `${selectedYearStart ?? "start"} – ${selectedYearEnd ?? "end"}` : "All Years"}<br/>
               Species: ${selectedSpecies || "All"}<br/>
               Ecosystem: ${selectedEcosystem || "All"}
             </div>

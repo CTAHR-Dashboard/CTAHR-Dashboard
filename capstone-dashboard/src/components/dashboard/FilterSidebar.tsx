@@ -10,11 +10,13 @@ interface FilterSidebarProps {
   speciesGroups: string[];
   ecosystemTypes: string[];
   selectedCounty: string;
-  selectedYear: number | null;
+  selectedYearStart: number | null;
+  selectedYearEnd: number | null;
   selectedSpecies: string;
   selectedEcosystem: string;
   setSelectedCounty: (val: string) => void;
-  setSelectedYear: (val: number | null) => void;
+  setSelectedYearStart: (val: number | null) => void;
+  setSelectedYearEnd: (val: number | null) => void;
   setSelectedSpecies: (val: string) => void;
   setSelectedEcosystem: (val: string) => void;
   onDownload: (downloadMode: "ALL_SEPARATE" | "ONE_COUNTY", county?: string) => void;
@@ -28,11 +30,13 @@ export default function FilterSidebar({
   speciesGroups,
   ecosystemTypes,
   selectedCounty,
-  selectedYear,
+  selectedYearStart,
+  selectedYearEnd,
   selectedSpecies,
   selectedEcosystem,
   setSelectedCounty,
-  setSelectedYear,
+  setSelectedYearStart,
+  setSelectedYearEnd,
   setSelectedSpecies,
   setSelectedEcosystem,
   onDownload,
@@ -84,21 +88,35 @@ export default function FilterSidebar({
           </select>
         </div>
 
-        {/* Year */}
+        {/* Year Range */}
         <div>
-          <div className="filter-label">Year</div>
-          <select
-            value={selectedYear ?? ""}
-            onChange={(e) =>
-              setSelectedYear(e.target.value === "" ? null : Number(e.target.value))
-            }
-            className="filter-select"
-          >
-            <option value="">All Years</option>
-            {years.map((y) => (
-              <option key={y} value={y}>{y}</option>
-            ))}
-          </select>
+          <div className="filter-label">Year Range</div>
+          <div className="year-range-row">
+            <select
+              value={selectedYearStart ?? ""}
+              onChange={(e) => setSelectedYearStart(e.target.value === "" ? null : Number(e.target.value))}
+              className="filter-select"
+            >
+              <option value="">Start</option>
+              {years.map((y) => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+            <span className="year-range-arrow">→</span>
+            <select
+              value={selectedYearEnd ?? ""}
+              onChange={(e) => setSelectedYearEnd(e.target.value === "" ? null : Number(e.target.value))}
+              className="filter-select"
+            >
+              <option value="">End</option>
+              {years.map((y) => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+          </div>
+          {!selectedYearStart && !selectedYearEnd && (
+            <div className="year-range-hint">All Years</div>
+          )}
         </div>
 
         {/* Species Group */}

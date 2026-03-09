@@ -205,17 +205,21 @@
 }
 
 .tabs-header {
-  padding: 18px 14px 16px;
+  padding: 18px 0 16px;
   border-bottom: 1px solid #1c1c1c;
 }
 
 .sidebar-logo {
-  width: 72px;
-  height: 72px;
-  border-radius: 50%;
-  object-fit: cover;
+  width: 80%;
+  height: auto;
   display: block;
-  margin-bottom: 12px;
+  margin: 0 0 12px 14px;
+}
+
+.sidebar-title,
+.sidebar-subtitle {
+  text-align: left;
+  padding-left: 14px;
 }
 
 .sidebar-title {
@@ -337,4 +341,27 @@
 
 .leaflet-interactive:focus {
   outline: none;
+}
+
+/* Year range row */
+.year-range-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.year-range-row .filter-select {
+  flex: 1;
+}
+
+.year-range-arrow {
+  color: #666;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.year-range-hint {
+  font-size: 11px;
+  color: #555;
+  margin-top: 5px;
 }

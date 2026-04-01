@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import Map from "../map/Map";
 import "./dashboard.css";
 import FilterSidebar from "./FilterSidebar";
@@ -236,7 +237,52 @@ export default function EcosystemDashboard({
   };
 
   return (
-    <div className="dashboard-container">
+  <div className="dashboard-container">
+    <div className="left-sidebar">
+  <div className="left-sidebar-header">
+    <div className="left-sidebar-logo">
+      <Image src="/icon.png" alt="Lab Icon" width={190} height={190} />
+    </div>
+
+    <h2>Hawaiʻi</h2>
+    <p>Ecosystem Accounts</p>
+  </div>
+
+  <div className="left-sidebar-values">
+    <button
+      className={dataset === "noncomm" ? "active" : ""}
+      onClick={() => setDataset("noncomm")}
+    >
+      Non-Commercial Fishery Values
+    </button>
+
+    <button
+      className={dataset === "comm" ? "active" : ""}
+      onClick={() => setDataset("comm")}
+    >
+      Commercial Fishery Values
+    </button>
+  </div>
+</div>
+
+    {(dataset == "noncomm") ? (
+      <div className="map-wrapper">
+        <Map
+          mapType="noncomm"
+          geoData={aggregatedGeoJSON}
+          selectedCounty={selectedCounty}
+          selectedYear={selectedYear}
+          selectedSpecies={selectedSpecies}
+          selectedEcosystem={selectedEcosystem}
+        />
+      </div>
+    ) : (
+      <div className="map-wrapper">
+        <CommFisheriesDashboard />
+      </div>
+    )}
+
+    <div className="right-sidebar">
       <FilterSidebar
         dataset={dataset}
         setDataset={setDataset}
@@ -254,23 +300,7 @@ export default function EcosystemDashboard({
         setSelectedEcosystem={setSelectedEcosystem}
         onDownload={handleDownload}
       />
-      
-      {(dataset == "noncomm") ? (
-        <div className="map-wrapper">
-          <Map
-            mapType="noncomm"
-            geoData={aggregatedGeoJSON}
-            selectedCounty={selectedCounty}
-            selectedYear={selectedYear}
-            selectedSpecies={selectedSpecies}
-            selectedEcosystem={selectedEcosystem}
-          />
-        </div>) : (
-          <div className="map-wrapper">
-            <CommFisheriesDashboard />
-          </div>
-        )
-      }
     </div>
-  );
+  </div>
+);
 }

@@ -1,6 +1,6 @@
 .dashboard-container {
   display: flex;
-  flex-direction: row-reverse;
+  flex-direction: row;
   height: 100vh;
 }
 
@@ -18,13 +18,65 @@
   overflow: hidden;
 }
 
-/* ================= Sidebar ================= */
+/* ================= Left Sidebar ================= */
 
-.sidebar {
+.left-sidebar {
+  width: 220px;
+  background: #0e0e0e;
+  color: #ffffff;
+  border-right: 1px solid #1c1c1c;
+  height: 100vh;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.left-sidebar-header {
+  padding: 24px 20px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.left-sidebar-logo {
+  margin-bottom: 16px;
+}
+
+.left-sidebar-header h2 {
+  margin: 0 0 6px 0;
+  font-size: 2rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.left-sidebar-header p {
+  margin: 0;
+  color: #bdbdbd;
+  font-size: 1rem;
+}
+
+.left-sidebar-values button {
+  background: transparent;
+  color: white;
+  border: none;
+  border-top: 1px solid #1c1c1c;
+  padding: 20px;
+  text-align: left;
+  cursor: pointer;
+  font-size: 1.1rem;
+}
+
+.left-sidebar-values button.active {
+  background: #1b1b1b;
+  border-left: 4px solid #f97316;
+}
+
+/* ================= Right Sidebar ================= */
+
+.right-sidebar {
   width: 420px;
   background: #0e0e0e;
   color: #ffffff;
-  display: flex;
   border-left: 1px solid #1c1c1c;
   height: 100vh;
   overflow-y: auto;

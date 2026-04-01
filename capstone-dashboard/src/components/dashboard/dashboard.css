@@ -1,12 +1,21 @@
 .dashboard-container {
   display: flex;
+  flex-direction: row-reverse;
   height: 100vh;
-  overflow: hidden;
+}
+
+.dashboard-layout {
+  display: grid;
+  grid-template-columns: 1fr 420px;
+  height: 100vh;
+  width: 100%;
 }
 
 .map-wrapper {
   flex: 1;
   height: 100vh;
+  min-width: 0;
+  overflow: hidden;
 }
 
 /* ================= Sidebar ================= */
@@ -16,14 +25,17 @@
   background: #0e0e0e;
   color: #ffffff;
   display: flex;
-  border-right: 1px solid #1c1c1c;
+  border-left: 1px solid #1c1c1c;
+  height: 100vh;
+  overflow-y: auto;
+  flex-shrink: 0;
 }
 
 /* Left tab rail */
 .sidebar-tabs {
   width: 180px;
   background: #0a0a0a;
-  border-right: 1px solid #1c1c1c;
+  border-left: 1px solid #1c1c1c;
   display: flex;
   flex-direction: column;
 }

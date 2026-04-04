@@ -1,3 +1,4 @@
+'use client';
 import EcosystemDashboard from "@/components/dashboard/EcosystemDashboard";
 import CommFisheriesDashboard from "@/components/dashboard/commFisheriesMap";
 

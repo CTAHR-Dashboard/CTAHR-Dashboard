@@ -1,11 +1,13 @@
-// Main dashboard component that loads GeoJSON and CSV data, manages filter state, and renders the map and sidebar.
+// Dashboard: loads GeoJSON + CSV, manages filters, and passes data down to the map and sidebar.
 "use client";
 
 import { useEffect, useState } from "react";
-import Map from "../map/Map";
+import dynamic from "next/dynamic";
 import "./dashboard.css";
 import FilterSidebar from "./FilterSidebar";
 import CommFisheriesDashboard from "./commFisheriesMap";
+
+const Map = dynamic(() => import("../map/Map"), { ssr: false });
 
 interface DashboardProps {
   geoJsonPath: string;
@@ -29,14 +31,13 @@ export default function EcosystemDashboard({
   const [csvData, setCsvData] = useState<CsvRow[]>([]);
   const [dataset, setDataset] = useState<"noncomm" | "comm">("noncomm");
 
-  const [selectedYear, setSelectedYear] = useState<number | null>(null);
+  const [selectedYearStart, setSelectedYearStart] = useState<number | null>(null);
+  const [selectedYearEnd, setSelectedYearEnd] = useState<number | null>(null);
   const [selectedCounty, setSelectedCounty] = useState("");
   const [selectedSpecies, setSelectedSpecies] = useState("");
   const [selectedEcosystem, setSelectedEcosystem] = useState("");
 
-  // -------------------------------------------------
-  // LOAD GEOJSON + CSV (DATASET DEPENDENT)
-  // -------------------------------------------------
+  // load GeoJSON and the right CSV whenever the dataset toggle changes
   useEffect(() => {
     async function loadData() {
 
@@ -81,24 +82,31 @@ export default function EcosystemDashboard({
           };
         });
 
-        setGeoData(geo);
-        setCsvData(parsed);
+        let county = row["county"];
 
-        // Reset filters when dataset changes
-        setSelectedCounty("");
-        setSelectedYear(null);
-        setSelectedSpecies("");
-        setSelectedEcosystem("");
-      } else if (dataset == "comm") {
+        // Normalize Lanai / Molokai into Maui
+        if (county === "Lanai" || county === "Molokai") {
+          county = "Maui";
+        }
 
-        // simply fetch the geojson! everything is aggreated
-        fetch("fisheriesdata/20260126_comm_ev_byMoku.geojson")
-        .then((response) => response.json())
-        .then((data) => {
-            setGeoDataComm(data)
-            console.log(data)
-        })
-      }
+        return {
+          year: Number(row["year"]),
+          county,
+          species_group: row["species_group"],
+          ecosystem_type: row["ecosystem_type"],
+          exchange_value: Number(row["exchange_value"]) || 0,
+        };
+      });
+
+      setGeoData(geo);
+      setCsvData(parsed);
+
+      // Reset filters when dataset changes
+      setSelectedCounty("");
+      setSelectedYearStart(null);
+      setSelectedYearEnd(null);
+      setSelectedSpecies("");
+      setSelectedEcosystem("");
     }
 
     loadData();
@@ -106,38 +114,31 @@ export default function EcosystemDashboard({
 
   if (!geoData) return <div>Loading {datasetLabel}...</div>;
 
-  // -------------------------------------------------
-  // DERIVE FILTER VALUES FROM CSV
-  // -------------------------------------------------
+  // pull unique values out of the CSV to populate the filter dropdowns
   const counties = [...new Set(csvData.map((d) => d.county))];
   const years = [...new Set(csvData.map((d) => d.year))].sort();
   const speciesGroups = [...new Set(csvData.map((d) => d.species_group))];
   const ecosystemTypes = [...new Set(csvData.map((d) => d.ecosystem_type))];
 
-  // -------------------------------------------------
-  // APPLY FILTERS TO CSV
-  // -------------------------------------------------
+  // apply active filters
   const filteredRows = csvData.filter((row) => {
     return (
-      (selectedYear === null || row.year === selectedYear) &&
+      (selectedYearStart === null || row.year >= selectedYearStart) &&
+      (selectedYearEnd === null || row.year <= selectedYearEnd) &&
       (selectedCounty === "" || row.county === selectedCounty) &&
       (selectedSpecies === "" || row.species_group === selectedSpecies) &&
       (selectedEcosystem === "" || row.ecosystem_type === selectedEcosystem)
     );
   });
 
-  // -------------------------------------------------
-  // AGGREGATE BY COUNTY
-  // -------------------------------------------------
+  // sum exchange values by county for the choropleth
   const totalsByCounty: Record<string, number> = {};
 
   filteredRows.forEach((row) => {
     totalsByCounty[row.county] = (totalsByCounty[row.county] || 0) + row.exchange_value;
   });
 
-  // -------------------------------------------------
-  // ATTACH TOTALS TO GEOJSON
-  // -------------------------------------------------
+  // attach the county totals to each GeoJSON feature so the map can color them
   const aggregatedFeatures = geoData.features.map((feature: any) => {
     const county = feature.properties.county;
 
@@ -181,31 +182,34 @@ export default function EcosystemDashboard({
   }
 
   function triggerCsvDownload(csvFilename: string, csvContents: string) {
-  const csvWithWindowsNewlines = csvContents.replace(/\n/g, "\r\n");
-  const csvWithBom = "\uFEFF" + csvWithWindowsNewlines; // helps Excel + UTF-8
+    const csvWithWindowsNewlines = csvContents.replace(/\n/g, "\r\n");
+    const csvWithBom = "\uFEFF" + csvWithWindowsNewlines;
 
-  const fileBlob = new Blob([csvWithBom], { type: "text/csv;charset=utf-8;" });
-  const fileUrl = URL.createObjectURL(fileBlob);
+    const fileBlob = new Blob([csvWithBom], { type: "text/csv;charset=utf-8;" });
+    const fileUrl = URL.createObjectURL(fileBlob);
 
-  const downloadAnchor = document.createElement("a");
-  downloadAnchor.href = fileUrl;
-  downloadAnchor.download = csvFilename;
-  document.body.appendChild(downloadAnchor);
-  downloadAnchor.click();
-  downloadAnchor.remove();
+    const downloadAnchor = document.createElement("a");
+    downloadAnchor.href = fileUrl;
+    downloadAnchor.download = csvFilename;
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
 
-  URL.revokeObjectURL(fileUrl);
-}
+    URL.revokeObjectURL(fileUrl);
+  }
 
   const handleDownload = (
     downloadMode: "ALL_SEPARATE" | "ONE_COUNTY",
     county?: string
   ) => {
-
     const safe = (s: string) => s.replace(/[^\w\-]+/g, "_");
 
+    const yearLabel = selectedYearStart || selectedYearEnd
+      ? `${selectedYearStart ?? "start"}-${selectedYearEnd ?? "end"}`
+      : "all-years";
+
     const filenameBaseParts = [
-      selectedYear ?? "all-years",
+      yearLabel,
       selectedSpecies || "all-species",
       selectedEcosystem || "all-ecosystems",
     ];
@@ -219,7 +223,6 @@ export default function EcosystemDashboard({
       return;
     }
 
-    // ALL_SEPARATE: download each county separately
     const rowsGroupedByCounty: Record<string, CsvRow[]> = {};
     filteredRows.forEach((row) => {
       const countyName = row.county || "Unknown";
@@ -229,11 +232,50 @@ export default function EcosystemDashboard({
     Object.entries(rowsGroupedByCounty).forEach(([countyName, countyRows], index) => {
       const csv = buildCsvFromRows(countyRows);
       const filename = `${[dataset, safe(countyName), ...filenameBaseParts].join("_")}.csv`;
-
-      // small stagger helps browsers allow multiple downloads
       window.setTimeout(() => triggerCsvDownload(filename, csv), index * 250);
     });
   };
+
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      maximumFractionDigits: 0,
+    }).format(value);
+
+  const handleCountyClick = (county: string) => {
+    setSelectedCounty(selectedCounty === county ? "" : county);
+  };
+
+  // roll up filtered rows for the bar charts in the data panel
+  const byYear: Record<number, number> = {};
+  const bySpecies: Record<string, number> = {};
+  const byEcosystem: Record<string, number> = {};
+
+  filteredRows.forEach((row) => {
+    byYear[row.year] = (byYear[row.year] || 0) + row.exchange_value;
+    bySpecies[row.species_group] = (bySpecies[row.species_group] || 0) + row.exchange_value;
+    byEcosystem[row.ecosystem_type] = (byEcosystem[row.ecosystem_type] || 0) + row.exchange_value;
+  });
+
+  const yearEntries = Object.entries(byYear)
+    .map(([k, v]) => [Number(k), v] as [number, number])
+    .filter(([, v]) => v > 0)
+    .sort(([a], [b]) => a - b);
+
+  const speciesEntries = Object.entries(bySpecies).filter(([, v]) => v > 0).sort(([, a], [, b]) => b - a);
+  const ecosystemEntries = Object.entries(byEcosystem).filter(([, v]) => v > 0).sort(([, a], [, b]) => b - a);
+
+  const maxYear = Math.max(...yearEntries.map(([, v]) => v), 1);
+  const maxSpecies = Math.max(...speciesEntries.map(([, v]) => v), 1);
+  const maxEco = Math.max(...ecosystemEntries.map(([, v]) => v), 1);
+
+  const tableRows = filteredRows
+    .filter((r) => r.exchange_value > 0)
+    .slice()
+    .sort((a, b) => a.year !== b.year ? a.year - b.year : a.species_group.localeCompare(b.species_group));
+
+  const tableTotal = filteredRows.reduce((sum, r) => sum + r.exchange_value, 0);
 
   return (
     <div className="dashboard-container">
@@ -245,32 +287,122 @@ export default function EcosystemDashboard({
         speciesGroups={speciesGroups}
         ecosystemTypes={ecosystemTypes}
         selectedCounty={selectedCounty}
-        selectedYear={selectedYear}
+        selectedYearStart={selectedYearStart}
+        selectedYearEnd={selectedYearEnd}
         selectedSpecies={selectedSpecies}
         selectedEcosystem={selectedEcosystem}
         setSelectedCounty={setSelectedCounty}
-        setSelectedYear={setSelectedYear}
+        setSelectedYearStart={setSelectedYearStart}
+        setSelectedYearEnd={setSelectedYearEnd}
         setSelectedSpecies={setSelectedSpecies}
         setSelectedEcosystem={setSelectedEcosystem}
         onDownload={handleDownload}
       />
-      
-      {(dataset == "noncomm") ? (
-        <div className="map-wrapper">
-          <Map
-            mapType="noncomm"
-            geoData={aggregatedGeoJSON}
-            selectedCounty={selectedCounty}
-            selectedYear={selectedYear}
-            selectedSpecies={selectedSpecies}
-            selectedEcosystem={selectedEcosystem}
-          />
-        </div>) : (
-          <div className="map-wrapper">
-            <CommFisheriesDashboard />
+
+      <div className="map-wrapper">
+        <Map
+          geoData={aggregatedGeoJSON}
+          selectedCounty={selectedCounty}
+          selectedYearStart={selectedYearStart}
+          selectedYearEnd={selectedYearEnd}
+          selectedSpecies={selectedSpecies}
+          selectedEcosystem={selectedEcosystem}
+          onCountyClick={handleCountyClick}
+        />
+
+        {selectedCounty && (
+          <div className="data-panel">
+            <div className="data-panel-header">
+              <div>
+                <div className="data-panel-title">{selectedCounty} County</div>
+                <div className="data-panel-subtitle">
+                  {tableRows.length} record{tableRows.length !== 1 ? "s" : ""} &mdash; Total {formatCurrency(tableTotal)}
+                </div>
+              </div>
+              <button className="data-panel-close" onClick={() => setSelectedCounty("")}>
+                ✕
+              </button>
+            </div>
+
+            <div className="data-panel-scroll">
+
+              {/* Chart: By Year */}
+              <div className="chart-section">
+                <div className="chart-section-label">Exchange Value by Year</div>
+                {yearEntries.map(([year, value]) => (
+                  <div key={year} className="bar-row">
+                    <div className="bar-name">{year}</div>
+                    <div className="bar-track">
+                      <div className="bar-fill" style={{ width: `${(value / maxYear) * 100}%` }} />
+                    </div>
+                    <div className="bar-value">{formatCurrency(value)}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Chart: By Species Group */}
+              <div className="chart-section">
+                <div className="chart-section-label">By Species Group</div>
+                {speciesEntries.map(([name, value]) => (
+                  <div key={name} className="bar-row">
+                    <div className="bar-name" title={name}>{name}</div>
+                    <div className="bar-track">
+                      <div className="bar-fill" style={{ width: `${(value / maxSpecies) * 100}%` }} />
+                    </div>
+                    <div className="bar-value">{formatCurrency(value)}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Chart: By Ecosystem Type */}
+              <div className="chart-section">
+                <div className="chart-section-label">By Ecosystem Type</div>
+                {ecosystemEntries.map(([name, value]) => (
+                  <div key={name} className="bar-row">
+                    <div className="bar-name" title={name}>{name}</div>
+                    <div className="bar-track">
+                      <div className="bar-fill" style={{ width: `${(value / maxEco) * 100}%` }} />
+                    </div>
+                    <div className="bar-value">{formatCurrency(value)}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Detail Table */}
+              <div className="chart-section">
+                <div className="chart-section-label">Detail</div>
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Year</th>
+                      <th>Species</th>
+                      <th>Ecosystem</th>
+                      <th>Value</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {tableRows.map((row, i) => (
+                      <tr key={i}>
+                        <td>{row.year}</td>
+                        <td>{row.species_group}</td>
+                        <td>{row.ecosystem_type}</td>
+                        <td>{formatCurrency(row.exchange_value)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <td colSpan={3}>Total</td>
+                      <td>{formatCurrency(tableTotal)}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+
+            </div>
           </div>
-        )
-      }
+        )}
+      </div>
     </div>
   );
 }

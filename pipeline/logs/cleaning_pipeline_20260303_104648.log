@@ -1,0 +1,92 @@
+2026-03-03 10:46:48,576 - INFO - Logging initialized: logs/cleaning_pipeline_20260303_104648.log
+2026-03-03 10:46:48,577 - INFO - FISHERIES DATA CLEANING PIPELINE - START
+2026-03-03 10:46:48,577 - INFO - Input Directory:  /Users/dominicmolina/Desktop/github/CTAHR-Dashboard/pipeline/data/raw
+2026-03-03 10:46:48,578 - INFO - Output Directory: /Users/dominicmolina/Desktop/github/CTAHR-Dashboard/pipeline/data/cleaned
+2026-03-03 10:46:48,578 - INFO - Remove Aggregates: False
+2026-03-03 10:46:48,578 - INFO - Remove Display Columns: False
+2026-03-03 10:46:48,579 - INFO - STARTING COMMERCIAL DATA CLEANING
+2026-03-03 10:46:48,579 - INFO - COMMERCIAL FISHERIES DATA CLEANING PIPELINE
+2026-03-03 10:46:48,580 - INFO - Loading commercial fisheries data 
+2026-03-03 10:46:48,601 - INFO - Loaded 30,750 rows from 20260216_tidied_comm_ev.csv
+2026-03-03 10:46:48,602 - INFO - Validating data schema 
+2026-03-03 10:46:48,603 - INFO - Optional columns present: ['county_olelo', 'exchange_value_formatted']
+2026-03-03 10:46:48,603 - INFO - Schema validation passed
+2026-03-03 10:46:48,603 - INFO - Validating data types 
+2026-03-03 10:46:48,605 - WARNING - Found 4074 null exchange values after conversion
+2026-03-03 10:46:48,606 - INFO - Validating data ranges 
+2026-03-03 10:46:48,606 - INFO - Data range validation passed
+2026-03-03 10:46:48,607 - INFO - Validating ecosystem types 
+2026-03-03 10:46:48,608 - INFO - All ecosystem types valid: ['All Ecosystems', 'Coastal — Open Ocean', 'Inshore — Reef']
+2026-03-03 10:46:48,609 - INFO - Validating species groups 
+2026-03-03 10:46:48,610 - INFO - All species groups valid: ['All Species', 'Deep 7 Bottomfish', 'Pelagics', 'Reef-Associated', 'Shallow Bottomfish']
+2026-03-03 10:46:48,610 - INFO - Validating county names 
+2026-03-03 10:46:48,612 - INFO - All counties valid: ['Hawaii', 'Honolulu', 'Kauai', 'Maui']
+2026-03-03 10:46:48,616 - INFO - Deriving island from area_id 
+2026-03-03 10:46:48,626 - INFO - Island derivation complete: {'Oahu': 7500, 'Hawaii': 6750, 'Kauai': 6375, 'Maui': 5625, 'Molokai': 3000, 'Lanai': 1500}
+2026-03-03 10:46:48,627 - INFO - Validating island names 
+2026-03-03 10:46:48,628 - INFO - All islands valid: ['Hawaii', 'Kauai', 'Lanai', 'Maui', 'Molokai', 'Oahu']
+2026-03-03 10:46:48,629 - INFO - Removing null/NA exchange values 
+2026-03-03 10:46:48,633 - INFO - Removed 4,074 records with null/NA exchange values
+2026-03-03 10:46:48,634 - INFO - Skipping aggregate row removal
+2026-03-03 10:46:48,634 - INFO - Keeping display columns
+2026-03-03 10:46:48,635 - INFO - Exporting cleaned commercial data 
+2026-03-03 10:46:48,692 - INFO - Exported 26,676 rows to data/cleaned/cleaned_commercial_20260303.csv
+2026-03-03 10:46:48,693 - INFO - Generating summary statistics 
+2026-03-03 10:46:48,700 - INFO - COMMERCIAL DATA CLEANING COMPLETE
+2026-03-03 10:46:48,700 - INFO - Input:  30,750 rows
+2026-03-03 10:46:48,700 - INFO - Output: 26,676 rows
+2026-03-03 10:46:48,701 - INFO - Removed: 4,074 rows
+2026-03-03 10:46:48,701 - INFO - STARTING NON COMMERCIAL DATA CLEANING
+2026-03-03 10:46:48,701 - INFO - NON COMMERCIAL FISHERIES DATA CLEANING PIPELINE
+2026-03-03 10:46:48,702 - INFO - Loading non commercial fisheries data 
+2026-03-03 10:46:48,704 - INFO - Loaded 324 rows from 20260216_tidied_noncomm_ev.csv
+2026-03-03 10:46:48,704 - INFO - Validating data schema 
+2026-03-03 10:46:48,704 - INFO - Optional columns present: ['island_olelo', 'county_olelo', 'exchange_value_formatted']
+2026-03-03 10:46:48,705 - INFO - Schema validation passed
+2026-03-03 10:46:48,705 - INFO - Validating data types 
+2026-03-03 10:46:48,706 - INFO - Validating data ranges 
+2026-03-03 10:46:48,706 - INFO - Data range validation passed
+2026-03-03 10:46:48,707 - INFO - Validating ecosystem types 
+2026-03-03 10:46:48,707 - INFO - All ecosystem types valid: ['All Ecosystems', 'Coastal — Open Ocean', 'Inshore — Reef']
+2026-03-03 10:46:48,707 - INFO - Validating species groups 
+2026-03-03 10:46:48,708 - INFO - Species group validation passed: ['Herbivores']
+2026-03-03 10:46:48,708 - INFO - Validating island names 
+2026-03-03 10:46:48,709 - INFO - All islands valid: ['Hawaii', 'Kauai', 'Lanai', 'Maui', 'Molokai', 'Oahu']
+2026-03-03 10:46:48,709 - INFO - Validating county names 
+2026-03-03 10:46:48,710 - INFO - All counties valid: ['Hawaii', 'Honolulu', 'Kauai', 'Maui']
+2026-03-03 10:46:48,710 - INFO - Removing null/NA exchange values 
+2026-03-03 10:46:48,711 - INFO - No null/NA values to remove
+2026-03-03 10:46:48,711 - INFO - Skipping aggregate row removal (remove_aggregates=False)
+2026-03-03 10:46:48,711 - INFO - Keeping display columns
+2026-03-03 10:46:48,712 - INFO - Exporting cleaned non commercial data 
+2026-03-03 10:46:48,713 - INFO - Exported 324 rows to data/cleaned/cleaned_noncommercial_20260303.csv
+2026-03-03 10:46:48,714 - INFO - Generating summary statistics 
+2026-03-03 10:46:48,715 - INFO - NON COMMERCIAL DATA CLEANING COMPLETE
+2026-03-03 10:46:48,715 - INFO - Input:  324 rows
+2026-03-03 10:46:48,716 - INFO - Output: 324 rows
+2026-03-03 10:46:48,716 - INFO - Removed: 0 rows
+2026-03-03 10:46:48,717 - INFO - 
+2026-03-03 10:46:48,717 - INFO - FISHERIES DATA CLEANING PIPELINE : FINAL REPORT
+2026-03-03 10:46:48,717 - INFO - 
+2026-03-03 10:46:48,718 - INFO - COMMERCIAL FISHERIES:
+2026-03-03 10:46:48,718 - INFO -   Status: SUCCESS
+2026-03-03 10:46:48,718 - INFO -   Input Rows:  30,750
+2026-03-03 10:46:48,719 - INFO -   Output Rows: 26,676
+2026-03-03 10:46:48,719 - INFO -   Removed:     4,074
+2026-03-03 10:46:48,719 - INFO -   Date Range:  1997-2021
+2026-03-03 10:46:48,720 - INFO -   Total Value: $1,264,932,883.24
+2026-03-03 10:46:48,720 - INFO -   Counties:    4
+2026-03-03 10:46:48,721 - INFO -   Islands:     6
+2026-03-03 10:46:48,721 - INFO -   Species:     5
+2026-03-03 10:46:48,722 - INFO -   DAR Areas:   82
+2026-03-03 10:46:48,722 - INFO - 
+2026-03-03 10:46:48,723 - INFO - NON COMMERCIAL FISHERIES:
+2026-03-03 10:46:48,723 - INFO -   Status: SUCCESS
+2026-03-03 10:46:48,723 - INFO -   Input Rows:  324
+2026-03-03 10:46:48,724 - INFO -   Output Rows: 324
+2026-03-03 10:46:48,724 - INFO -   Removed:     0
+2026-03-03 10:46:48,724 - INFO -   Date Range:  2005-2022
+2026-03-03 10:46:48,725 - INFO -   Total Value: $29,551,045.79
+2026-03-03 10:46:48,725 - INFO -   Islands:     6
+2026-03-03 10:46:48,726 - INFO - 
+2026-03-03 10:46:48,726 - INFO - Pipeline Status: SUCCESS

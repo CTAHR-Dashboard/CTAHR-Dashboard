@@ -10,18 +10,22 @@ interface MapProps {
   mapType: string;
   geoData: any;
   selectedCounty: string;
-  selectedYear: number | null;
+  selectedYearStart: number | null;
+  selectedYearEnd: number | null;
   selectedSpecies: string;
   selectedEcosystem: string;
+  onCountyClick?: (county: string) => void;
 }
 
 export default function Map({
   mapType,
   geoData,
   selectedCounty,
-  selectedYear,
+  selectedYearStart,
+  selectedYearEnd,
   selectedSpecies,
   selectedEcosystem,
+  onCountyClick,
 }: MapProps) {
   const position: LatLngExpression = [20.81, -158.75];
 

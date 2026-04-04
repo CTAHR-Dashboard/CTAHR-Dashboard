@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import "./dashboard.css";
 import FilterSidebar from "./FilterSidebar";
+import CommFisheriesDashboard from "./commFisheriesMap";
 
 const Map = dynamic(() => import("../map/Map"), { ssr: false });
 
@@ -26,6 +27,7 @@ export default function EcosystemDashboard({
   datasetLabel,
 }: DashboardProps) {
   const [geoData, setGeoData] = useState<any>(null);
+  const [geoDataComm, setGeoDataComm] = useState<any>(null)
   const [csvData, setCsvData] = useState<CsvRow[]>([]);
   const [dataset, setDataset] = useState<"noncomm" | "comm">("noncomm");
 
@@ -38,28 +40,46 @@ export default function EcosystemDashboard({
   // load GeoJSON and the right CSV whenever the dataset toggle changes
   useEffect(() => {
     async function loadData() {
-      const geoRes = await fetch(geoJsonPath);
-      const geo = await geoRes.json();
 
-      const csvPath =
-        dataset === "noncomm"
-          ? "/fisheriesdata/cleaned_noncommercial.csv"
-          : "/fisheriesdata/cleaned_commercial.csv";
+      if (dataset == "noncomm") {
+        const geoRes = await fetch(geoJsonPath);
+        const geo = await geoRes.json();
 
-      const csvRes = await fetch(csvPath);
-      const csvText = await csvRes.text();
+        const csvPath =
+          dataset === "noncomm"
+            ? "/fisheriesdata/20260216_tidied_noncomm_ev.csv"
+            : "/fisheriesdata/20260216_tidied_comm_ev.csv";
 
-      const lines = csvText.split("\n").filter((r) => r.trim() !== "");
+        const csvRes = await fetch(csvPath);
+        const csvText = await csvRes.text();
 
-      const headers = lines[0].split(",").map((h) => h.replace(/"/g, "").trim());
+        const lines = csvText.split("\n").filter((r) => r.trim() !== "");
 
-      const parsed: CsvRow[] = lines.slice(1).map((line) => {
-        const values = line.split(",");
+        const headers = lines[0].split(",").map((h) => h.replace(/"/g, "").trim());
 
-        const row: any = {};
+        const parsed: CsvRow[] = lines.slice(1).map((line) => {
+          const values = line.split(",");
 
-        headers.forEach((header, index) => {
-          row[header] = values[index]?.replace(/"/g, "").trim();
+          const row: any = {};
+
+          headers.forEach((header, index) => {
+            row[header] = values[index]?.replace(/"/g, "").trim();
+          });
+
+          let county = row["county"];
+
+          // Normalize Lanai / Molokai into Maui
+          if (county === "Lanai" || county === "Molokai") {
+            county = "Maui";
+          }
+
+          return {
+            year: Number(row["year"]),
+            county,
+            species_group: row["species_group"],
+            ecosystem_type: row["ecosystem_type"],
+            exchange_value: Number(row["exchange_value"]) || 0,
+          };
         });
 
         let county = row["county"];

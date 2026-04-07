@@ -26,7 +26,8 @@ export default function CommFisheriesDashboard() {
                 mapType='comm'
                 geoData={jsonData}
                 selectedCounty=""
-                selectedYear={2020}
+                selectedYearStart={2020}
+                selectedYearEnd={2020}
                 selectedSpecies="Shallow Bottomfish"
                 selectedEcosystem="Inshore — Reef"
             />} 

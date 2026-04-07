@@ -27,7 +27,8 @@ export default function Map({
   selectedEcosystem,
   onCountyClick,
 }: MapProps) {
-  const position: LatLngExpression = [20.81, -158.75];
+  // Center between Big Island (-155.5W) and Kauai (-159.5W), midpoint lat of island chain
+  const position: LatLngExpression = [20.5, -157.5];
 
   // ----------------------------------
   // Quantile Calculation
@@ -65,7 +66,7 @@ export default function Map({
     <div style={{ height: "100vh" }}>
       <MapContainer
         center={position}
-        zoom={6.5}
+        zoom={7}
         zoomControl={false}
         style={{ height: "100vh", width: "100%" }}
       >
@@ -76,8 +77,9 @@ export default function Map({
 
         <ZoomControl position="topright" />
 
+        {/* Re-render GeoJSON layer whenever data or filters change */}
         <GeoJSON
-          key={JSON.stringify(geoData)} // forces re-render on filter change
+          key={JSON.stringify(geoData)}
           data={geoData}
           style={(feature: any) => {
             const value = feature.properties.total_exchange_value || 0;
@@ -85,15 +87,13 @@ export default function Map({
               ? feature.properties.area_id
               : feature.properties.county;
 
-            if (selectedCounty !== "" && featureKey !== selectedCounty) {
-              return { fillOpacity: 0, opacity: 0 };
-            }
+            const isSelected = selectedCounty !== "" && featureKey === selectedCounty;
 
             return {
               fillColor: getColor(value),
-              fillOpacity: 0.65,
-              color: "#222",
-              weight: 0.8,
+              fillOpacity: isSelected ? 0.9 : 0.55,
+              color: isSelected ? "#d94801" : "#222",
+              weight: isSelected ? 2.5 : 0.8,
             };
           }}
           onEachFeature={(feature: any, layer: any) => {
@@ -122,10 +122,14 @@ export default function Map({
                 onCountyClick?.(key);
               },
               mouseover: (e: any) => {
-                e.target.setStyle({ fillOpacity: 0.8 });
+                e.target.setStyle({ fillOpacity: 0.85 });
               },
               mouseout: (e: any) => {
-                e.target.setStyle({ fillOpacity: 0.65 });
+                const featureKey = mapType === "comm"
+                  ? feature.properties.area_id
+                  : feature.properties.county;
+                const isSelected = selectedCounty !== "" && featureKey === selectedCounty;
+                e.target.setStyle({ fillOpacity: isSelected ? 0.9 : 0.55 });
               },
             });
           }}

@@ -7,7 +7,7 @@ import "leaflet/dist/leaflet.css";
 import { useMemo } from "react";
 
 interface MapProps {
-  mapType: string;
+  mapType?: string;
   geoData: any;
   selectedCounty: string;
   selectedYearStart: number | null;
@@ -27,7 +27,8 @@ export default function Map({
   selectedEcosystem,
   onCountyClick,
 }: MapProps) {
-  const position: LatLngExpression = [20.81, -158.75];
+  // Center between Big Island (-155.5W) and Kauai (-159.5W), midpoint lat of island chain
+  const position: LatLngExpression = [20.5, -157.5];
 
   // ----------------------------------
   // Quantile Calculation
@@ -61,54 +62,11 @@ export default function Map({
     }).format(value);
   };
 
-  const retrieveCommValues = (feature: any) => {
-    // feature.properties.exchange_value is an array. Compute the array index that the specific combination of (year, species_group, ecosystem_type) corresponds to.
-
-    // 🔥 SAFETY CHECK
-    if (!feature?.properties?.year) return 0;
-
-    let total = 0;
-
-    for (let i = 0; i < feature.properties.year.length; i++) {
-      const year = feature.properties.year[i];
-      const species = feature.properties.species_group[i];
-      const ecosystem = feature.properties.ecosystem_type[i];
-      const value = feature.properties.exchange_value[i];
-
-      // filter thru year (NOW RANGE)
-      const yearMatch =
-        (!selectedYearStart || year >= selectedYearStart) &&
-        (!selectedYearEnd || year <= selectedYearEnd);
-
-      // filter thru species
-      const speciesMatch =
-        !selectedSpecies || species === selectedSpecies;
-
-      // filter thru ecosystem type
-      const ecosystemMatch =
-        !selectedEcosystem || ecosystem === selectedEcosystem;
-
-      if (yearMatch && speciesMatch && ecosystemMatch) {
-        total += value || 0;
-      }
-    }
-
-    return total;
-  };
-
   return (
     <div style={{ height: "100vh" }}>
-      {mapType == "comm" && (
-        <p style={{ color: "red" }}>
-          Filters applied: Year=<b>{selectedYearStart} - {selectedYearEnd}</b>,
-          Species=<b>{selectedSpecies}</b>, Ecosystem=
-          <b>{selectedEcosystem}</b>
-        </p>
-      )}
-
       <MapContainer
         center={position}
-        zoom={6.5}
+        zoom={7}
         zoomControl={false}
         style={{ height: "100vh", width: "100%" }}
       >
@@ -119,78 +77,59 @@ export default function Map({
 
         <ZoomControl position="topright" />
 
+        {/* Re-render GeoJSON layer whenever data or filters change */}
         <GeoJSON
-          key={JSON.stringify(geoData)} // forces re-render on filter change
+          key={JSON.stringify(geoData)}
           data={geoData}
-          
           style={(feature: any) => {
-            let value;
+            const value = feature.properties.total_exchange_value || 0;
+            const featureKey = mapType === "comm"
+              ? feature.properties.area_id
+              : feature.properties.county;
 
-            if (
-              selectedCounty !== "" &&
-              feature.properties.county !== selectedCounty
-            ) {
-              return { fillOpacity: 0, opacity: 0 };
-            }
+            const isSelected = selectedCounty !== "" && featureKey === selectedCounty;
 
-            if (mapType == "noncomm") {
-              // if the map type is noncommercial, the passed data is already filtered by Pelita's EcosystemDashboard.tsx file.
-              value = feature.properties.total_exchange_value || 0;
-              return {
-                fillColor: getColor(value),
-                fillOpacity: 0.65,
-                color: "#222",
-                weight: 0.8,
-              };
-            } else {
-              // if the map type is commercial, the passed data is not filtered. Conduct the filtering.
-              value = retrieveCommValues(feature);
-              return {
-                fillColor: getColor(value), // 🔥 changed from static color
-                fillOpacity: 0.65,
-                color: "#222",
-                weight: 0.8,
-              };
-            }
+            return {
+              fillColor: getColor(value),
+              fillOpacity: isSelected ? 0.9 : 0.55,
+              color: isSelected ? "#d94801" : "#222",
+              weight: isSelected ? 2.5 : 0.8,
+            };
           }}
-
           onEachFeature={(feature: any, layer: any) => {
-            let value, tooltipContent;
+            const value = feature.properties.total_exchange_value || 0;
+            const label = mapType === "comm"
+              ? `Moku: ${feature.properties.area_id}`
+              : `County: ${feature.properties.county}`;
 
-            if (mapType == "noncomm") {
-              // if it's non-commercial - this is Pelita's code.
-              value = feature.properties.total_exchange_value || 0;
-              tooltipContent = `
-                <div style="font-size:13px">
-                  <strong>County/Moku: ${feature.properties.county}</strong><br/>
-                  Exchange Value: ${formatCurrency(value)}<br/>
-                  Year: ${selectedYearStart ?? "All Years"} - ${selectedYearEnd ?? ""}<br/>
-                  Species: ${selectedSpecies || "All"}<br/>
-                  Ecosystem: ${selectedEcosystem || "All"}
-                </div>
-              `;
-            } else {
-              // if it's commercial - this is Micaiah's code.
-              value = retrieveCommValues(feature);
-              tooltipContent = `
-                <div style="font-size:13px">
-                  <strong>Moku: ${feature.properties.area_id}</strong><br/>
-                  Exchange Value: ${formatCurrency(value)}<br/>
-                  Year: ${selectedYearStart ?? "All Years"} - ${selectedYearEnd ?? ""}<br/>
-                  Species: ${selectedSpecies || "All"}<br/>
-                  Ecosystem: ${selectedEcosystem || "All"}
-                </div>
-              `;
-            }
+            const tooltipContent = `
+              <div style="font-size:13px">
+                <strong>${label}</strong><br/>
+                Exchange Value: ${formatCurrency(value)}<br/>
+                Year: ${selectedYearStart || selectedYearEnd ? `${selectedYearStart ?? "start"} – ${selectedYearEnd ?? "end"}` : "All Years"}<br/>
+                Species: ${selectedSpecies || "All"}<br/>
+                Ecosystem: ${selectedEcosystem || "All"}
+              </div>
+            `;
 
             layer.bindTooltip(tooltipContent, { sticky: true });
 
             layer.on({
+              click: () => {
+                const key = mapType === "comm"
+                  ? feature.properties.area_id
+                  : feature.properties.county;
+                onCountyClick?.(key);
+              },
               mouseover: (e: any) => {
-                e.target.setStyle({ fillOpacity: 0.8 });
+                e.target.setStyle({ fillOpacity: 0.85 });
               },
               mouseout: (e: any) => {
-                e.target.setStyle({ fillOpacity: 0.65 });
+                const featureKey = mapType === "comm"
+                  ? feature.properties.area_id
+                  : feature.properties.county;
+                const isSelected = selectedCounty !== "" && featureKey === selectedCounty;
+                e.target.setStyle({ fillOpacity: isSelected ? 0.9 : 0.55 });
               },
             });
           }}
@@ -199,6 +138,3 @@ export default function Map({
     </div>
   );
 }
-
-/*
- */

@@ -105,7 +105,13 @@ export default function EcosystemDashboard({
     loadData();
   }, [geoJsonPath, dataset]);
 
-  if (!geoData) return <div>Loading {datasetLabel}...</div>;
+  if (dataset === "noncomm" && !geoData) {
+    return <div>Loading {datasetLabel}...</div>;
+  }
+
+  if (dataset === "comm" && !geoDataComm) {
+    return <div>Loading {datasetLabel}...</div>;
+  }
 
   // -------------------------------------------------
   // DERIVE FILTER VALUES FROM CSV
@@ -156,6 +162,32 @@ export default function EcosystemDashboard({
     features: aggregatedFeatures,
   };
 
+  function extractCommRowsFromGeoJSON(): CsvRow[] {
+    if (!geoDataComm?.features) return [];
+
+    const rows: CsvRow[] = [];
+
+    geoDataComm.features.forEach((feature: any) => {
+      const props = feature.properties;
+      const years = props.years || [];
+      const speciesGroups = props.species_groups || [];
+      const ecosystemTypes = props.ecosystem_types || [];
+      const exchangeValues = props.exchange_values || [];
+
+      for (let i = 0; i < years.length; i++) {
+        rows.push({
+          year: Number(years[i]),
+          county: props.county_olelo || "",
+          species_group: speciesGroups[i] || "",
+          ecosystem_type: ecosystemTypes[i] || "",
+          exchange_value: Number(exchangeValues[i]) || 0,
+        });
+      }
+    });
+    return rows;
+  }
+
+
   function buildCsvFromRows(rowsForCsv: CsvRow[]) {
     if (rowsForCsv.length === 0) return "";
 
@@ -205,6 +237,18 @@ export default function EcosystemDashboard({
 
     const safe = (s: string) => s.replace(/[^\w\-]+/g, "_");
 
+    const rowsSource =
+      dataset === "noncomm"
+        ? filteredRows
+        : extractCommRowsFromGeoJSON().filter((row) => {
+            return (
+              (selectedYear === null || row.year === selectedYear) &&
+              (selectedCounty === "" || row.county === selectedCounty) &&
+              (selectedSpecies === "" || row.species_group === selectedSpecies) &&
+              (selectedEcosystem === "" || row.ecosystem_type === selectedEcosystem)
+          );
+        });
+
     const filenameBaseParts = [
       selectedYear ?? "all-years",
       selectedSpecies || "all-species",
@@ -213,7 +257,7 @@ export default function EcosystemDashboard({
 
     if (downloadMode === "ONE_COUNTY") {
       if (!county) return;
-      const countyRows = filteredRows.filter((r) => r.county === county);
+      const countyRows = rowsSource.filter((r) => r.county === county);
       const csv = buildCsvFromRows(countyRows);
       const filename = `${[dataset, safe(county), ...filenameBaseParts].join("_")}.csv`;
       triggerCsvDownload(filename, csv);
@@ -222,7 +266,7 @@ export default function EcosystemDashboard({
 
     // ALL_SEPARATE: download each county separately
     const rowsGroupedByCounty: Record<string, CsvRow[]> = {};
-    filteredRows.forEach((row) => {
+    rowsSource.forEach((row) => {
       const countyName = row.county || "Unknown";
       (rowsGroupedByCounty[countyName] ||= []).push(row);
     });

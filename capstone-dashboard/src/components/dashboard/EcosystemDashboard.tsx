@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from "react";
 import Map from "../map/Map";
+import CommMap from "../map/CommMap";
 import "./dashboard.css";
 import FilterSidebar from "./FilterSidebar";
 import CommFisheriesDashboard from "./commFisheriesMap";
@@ -20,12 +21,21 @@ interface CsvRow {
   exchange_value: number;
 }
 
+interface GeoPolygon {
+  year: number[];
+  area_id: string;
+  county_olelo: string;
+  species_group: string[];
+  ecosystem_type: string[];
+  exchange_value: number[];
+}
+
 export default function EcosystemDashboard({
   geoJsonPath,
   datasetLabel,
 }: DashboardProps) {
   const [geoData, setGeoData] = useState<any>(null);
-  const [geoDataComm, setGeoDataComm] = useState<any>(null)
+  const [geoDataComm, setGeoDataComm] = useState<any>(null); // created by Micaiah - is for comm geojson
   const [csvData, setCsvData] = useState<CsvRow[]>([]);
   const [dataset, setDataset] = useState<"noncomm" | "comm">("noncomm");
 
@@ -34,6 +44,15 @@ export default function EcosystemDashboard({
   const [selectedSpecies, setSelectedSpecies] = useState("");
   const [selectedEcosystem, setSelectedEcosystem] = useState("");
 
+  // variables for comm (created by Micaiah)
+
+  const [commCounties, setCommCounties] = useState<string[]>([]);
+  const [commYears, setCommYears] = useState<number[]>([]);
+  const [commSpecies, setCommSpecies] = useState<string[]>([]);
+  const [commEcosystem, setCommEcosystem] = useState<string[]>([]);
+
+  // end variables for comm
+
   // -------------------------------------------------
   // LOAD GEOJSON + CSV (DATASET DEPENDENT)
   // -------------------------------------------------
@@ -41,6 +60,7 @@ export default function EcosystemDashboard({
     async function loadData() {
 
       if (dataset == "noncomm") {
+        // this is Pelita's branch.
         const geoRes = await fetch(geoJsonPath);
         const geo = await geoRes.json();
 
@@ -89,14 +109,22 @@ export default function EcosystemDashboard({
         setSelectedYear(null);
         setSelectedSpecies("");
         setSelectedEcosystem("");
-      } else if (dataset == "comm") {
 
-        // simply fetch the geojson! everything is aggreated
+      } else if (dataset == "comm") {
+        // this is Micaiah's branch. simply fetch the geojson! everything is aggreated
         fetch("fisheriesdata/20260126_comm_ev_byMoku.geojson")
+        // fetch("fisheriesdata/test.geojson")
         .then((response) => response.json())
         .then((data) => {
-            setGeoDataComm(data)
-            console.log(data)
+          setGeoDataComm(data)
+          let geoDataCleaned: GeoPolygon[]
+          geoDataCleaned = data.features.map((polygon: {properties: any}) => polygon.properties)
+          console.log(geoDataCleaned)
+
+          setCommCounties([...new Set(geoDataCleaned.map((d) => d.county_olelo))])
+          setCommYears([...new Set(geoDataCleaned[0].year)].sort())
+          setCommSpecies([...new Set(geoDataCleaned[0].species_group)])
+          setCommEcosystem([...new Set(geoDataCleaned[0].ecosystem_type)])
         })
       }
     }
@@ -104,56 +132,115 @@ export default function EcosystemDashboard({
     loadData();
   }, [geoJsonPath, dataset]);
 
-  if (!geoData) return <div>Loading {datasetLabel}...</div>;
+  if ((dataset == "noncomm" && !geoData) || (dataset == "comm" && !geoDataComm)) return <div>Loading {datasetLabel}...</div>;
 
-  // -------------------------------------------------
-  // DERIVE FILTER VALUES FROM CSV
-  // -------------------------------------------------
-  const counties = [...new Set(csvData.map((d) => d.county))];
-  const years = [...new Set(csvData.map((d) => d.year))].sort();
-  const speciesGroups = [...new Set(csvData.map((d) => d.species_group))];
-  const ecosystemTypes = [...new Set(csvData.map((d) => d.ecosystem_type))];
+  // FILTERING FUNCTIONALITY HERE
 
-  // -------------------------------------------------
-  // APPLY FILTERS TO CSV
-  // -------------------------------------------------
-  const filteredRows = csvData.filter((row) => {
-    return (
-      (selectedYear === null || row.year === selectedYear) &&
-      (selectedCounty === "" || row.county === selectedCounty) &&
-      (selectedSpecies === "" || row.species_group === selectedSpecies) &&
-      (selectedEcosystem === "" || row.ecosystem_type === selectedEcosystem)
-    );
-  });
+  // --> aggregatedGeoJSON is Pelita's (for noncomm data)
+  // --> aggregatedCommGeoJSON is Micaiah's (for comm data)
 
-  // -------------------------------------------------
-  // AGGREGATE BY COUNTY
-  // -------------------------------------------------
-  const totalsByCounty: Record<string, number> = {};
+  let aggregatedGeoJSON, aggregatedCommGeoJSON
 
-  filteredRows.forEach((row) => {
-    totalsByCounty[row.county] = (totalsByCounty[row.county] || 0) + row.exchange_value;
-  });
+  // this is for Pelita
+  let counties: String[]
+  let years: number[]
+  let speciesGroups: String[]
+  let ecosystemTypes : String[]
 
-  // -------------------------------------------------
-  // ATTACH TOTALS TO GEOJSON
-  // -------------------------------------------------
-  const aggregatedFeatures = geoData.features.map((feature: any) => {
-    const county = feature.properties.county;
+  if (dataset == "noncomm") {
+    // pelita's filtering here
 
-    return {
-      ...feature,
-      properties: {
-        ...feature.properties,
-        total_exchange_value: totalsByCounty[county] || 0,
-      },
+    // -------------------------------------------------
+    // DERIVE FILTER VALUES FROM CSV
+    // -------------------------------------------------
+
+    counties = [...new Set(csvData.map((d) => d.county))];
+    years = [...new Set(csvData.map((d) => d.year))].sort();
+    speciesGroups = [...new Set(csvData.map((d) => d.species_group))];
+    ecosystemTypes = [...new Set(csvData.map((d) => d.ecosystem_type))];
+
+    // -------------------------------------------------
+    // APPLY FILTERS TO CSV
+    // -------------------------------------------------
+    const filteredRows = csvData.filter((row) => {
+      return (
+        (selectedYear === null || row.year === selectedYear) &&
+        (selectedCounty === "" || row.county === selectedCounty) &&
+        (selectedSpecies === "" || row.species_group === selectedSpecies) &&
+        (selectedEcosystem === "" || row.ecosystem_type === selectedEcosystem)
+      );
+    });
+
+    // -------------------------------------------------
+    // AGGREGATE BY COUNTY
+    // -------------------------------------------------
+    const totalsByCounty: Record<string, number> = {};
+
+    filteredRows.forEach((row) => {
+      totalsByCounty[row.county] = (totalsByCounty[row.county] || 0) + row.exchange_value;
+    });
+
+    // -------------------------------------------------
+    // ATTACH TOTALS TO GEOJSON
+    // -------------------------------------------------
+    const aggregatedFeatures = geoData.features.map((feature: any) => {
+      const county = feature.properties.county;
+
+      return {
+        ...feature,
+        properties: {
+          ...feature.properties,
+          total_exchange_value: totalsByCounty[county] || 0,
+        },
+      };
+    });
+
+    aggregatedGeoJSON = {
+      ...geoData,
+      features: aggregatedFeatures,
     };
-  });
+  } else {
+    // micaiah's filtering here
 
-  const aggregatedGeoJSON = {
-    ...geoData,
-    features: aggregatedFeatures,
-  };
+    const raw_features = geoDataComm.features
+    const geoDataCleaned = raw_features.map((polygon: { properties: any }, ind) => {return {...polygon.properties, index: ind}})
+      .filter((item: any) => ((selectedCounty == "") || item.county_olelo == selectedCounty))
+      .map((item: any) => {
+        let finalIndices = []
+        for (let ind = 0; ind < item.year.length; ind++) {
+          if ((!selectedYear || item.year[ind] == selectedYear) && 
+          (!selectedSpecies || item.species_group[ind] == selectedSpecies) && 
+          (!selectedEcosystem || item.ecosystem_type[ind] == selectedEcosystem)) {
+            finalIndices.push(ind)
+          }
+        }
+
+        const exchange_value_list = finalIndices.map(ind => item.exchange_value[ind])
+
+        const innerJSON = {
+          ...item,
+          year: finalIndices.map(ind => item.year[ind]),
+          species_group: finalIndices.map(ind => item.species_group[ind]),
+          ecosystem_type: finalIndices.map(ind => item.ecosystem_type[ind]),
+          exchange_value: exchange_value_list,
+          total_exchange_value: exchange_value_list.reduce((acc, curr) => ((curr != -1) ? acc + curr : acc), 0)
+        }
+
+        return ({
+          type: "Feature",
+          properties: innerJSON,
+          geometry: raw_features[item.index].geometry
+        })
+      })
+
+      aggregatedCommGeoJSON = {
+        ...geoDataComm,
+        features: geoDataCleaned
+      }
+
+      console.log(JSON.stringify(aggregatedCommGeoJSON))
+  }
+  
 
   function buildCsvFromRows(rowsForCsv: CsvRow[]) {
     if (rowsForCsv.length === 0) return "";
@@ -237,28 +324,51 @@ export default function EcosystemDashboard({
 
   return (
     <div className="dashboard-container">
-      <FilterSidebar
-        dataset={dataset}
-        setDataset={setDataset}
-        counties={counties}
-        years={years}
-        speciesGroups={speciesGroups}
-        ecosystemTypes={ecosystemTypes}
-        selectedCounty={selectedCounty}
-        selectedYear={selectedYear}
-        selectedSpecies={selectedSpecies}
-        selectedEcosystem={selectedEcosystem}
-        setSelectedCounty={setSelectedCounty}
-        setSelectedYear={setSelectedYear}
-        setSelectedSpecies={setSelectedSpecies}
-        setSelectedEcosystem={setSelectedEcosystem}
-        onDownload={handleDownload}
-      />
+      {(dataset == "noncomm") ? (
+        /* this is Pelita's noncomm sidebar. */
+        <FilterSidebar
+          dataset={dataset}
+          setDataset={setDataset}
+          counties={counties}
+          years={years}
+          speciesGroups={speciesGroups}
+          ecosystemTypes={ecosystemTypes}
+          selectedCounty={selectedCounty}
+          selectedYear={selectedYear}
+          selectedSpecies={selectedSpecies}
+          selectedEcosystem={selectedEcosystem}
+          setSelectedCounty={setSelectedCounty}
+          setSelectedYear={setSelectedYear}
+          setSelectedSpecies={setSelectedSpecies}
+          setSelectedEcosystem={setSelectedEcosystem}
+          onDownload={handleDownload}
+        />
+      ) : (
+        /* this is Micaiah's comm sidebar. */
+        <FilterSidebar
+          dataset={dataset}
+          setDataset={setDataset}
+          counties={commCounties}
+          years={commYears}
+          speciesGroups={commSpecies}
+          ecosystemTypes={commEcosystem}
+          selectedCounty={selectedCounty}
+          selectedYear={selectedYear}
+          selectedSpecies={selectedSpecies}
+          selectedEcosystem={selectedEcosystem}
+          setSelectedCounty={setSelectedCounty}
+          setSelectedYear={setSelectedYear}
+          setSelectedSpecies={setSelectedSpecies}
+          setSelectedEcosystem={setSelectedEcosystem}
+          onDownload={handleDownload}
+        />
+        /*<p>oops</p>*/
+      )}
+      
       
       {(dataset == "noncomm") ? (
         <div className="map-wrapper">
           <Map
-            mapType="noncomm"
             geoData={aggregatedGeoJSON}
             selectedCounty={selectedCounty}
             selectedYear={selectedYear}
@@ -267,7 +377,14 @@ export default function EcosystemDashboard({
           />
         </div>) : (
           <div className="map-wrapper">
-            <CommFisheriesDashboard />
+            { /* this is micaiah's */ }
+            <CommMap
+              geoData={aggregatedCommGeoJSON}
+              selectedCounty={selectedCounty}
+              selectedYear={selectedYear}
+              selectedSpecies={selectedSpecies}
+              selectedEcosystem={selectedEcosystem}
+            />
           </div>
         )
       }

@@ -1,13 +1,13 @@
 //Rendering map component, styles for choropleth, and tooltip content. Uses quantiles for color scaling.
 "use client";
 
-import { MapContainer, TileLayer, GeoJSON, ZoomControl } from "react-leaflet";
-import type { LatLngExpression } from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { useMemo } from "react";
+import { MapContainer, TileLayer, GeoJSON, ZoomControl } from "react-leaflet";
+// dynamic(() => import("./react-leaflet/hooks"), { ssr:false })
+import type { LatLngExpression } from "leaflet";
+import { useMemo, useState } from "react";
 
 interface MapProps {
-  mapType: string;
   geoData: any;
   selectedCounty: string;
   selectedYear: number | null;
@@ -16,7 +16,6 @@ interface MapProps {
 }
 
 export default function Map({
-  mapType,
   geoData,
   selectedCounty,
   selectedYear,
@@ -24,6 +23,7 @@ export default function Map({
   selectedEcosystem,
 }: MapProps) {
   const position: LatLngExpression = [20.81, -158.75];
+
 
   // ----------------------------------
   // Quantile Calculation
@@ -57,40 +57,8 @@ export default function Map({
     }).format(value);
   };
 
-  const retrieveCommValues = (feature: any) => {
-    // feature.properties.exchange_value is an array. Compute the array index that the specific combination of (year, species_group, ecosystem_type) corresponds to.
-
-    // filter thru year
-    let yearArrayIndices = []
-    for (let ind = 0; ind < feature.properties.year.length; ind++) {
-      if (feature.properties.year[ind] == selectedYear) {
-        yearArrayIndices.push(ind)
-      }
-    }
-
-    // filter thru species
-    let speciesIndices = []
-    for (let i = 0; i < yearArrayIndices.length; i++) {
-      if (feature.properties.species_group[yearArrayIndices[i]] == selectedSpecies) {
-        speciesIndices.push(yearArrayIndices[i])
-      }
-    }
-
-    // filter thru ecosystem type
-    let finalIndex = -1
-    for (let i = 0; i < speciesIndices.length; i++) {
-      if (feature.properties.ecosystem_type[speciesIndices[i]] == selectedEcosystem) {
-        finalIndex = speciesIndices[i]
-        break
-      }
-    }
-
-    return feature.properties.exchange_value[finalIndex]
-  }
-
   return (
     <div style = {{ height: "100vh" }}>
-      {mapType == "comm" && <p style={{color: "red"}}>Filters applied: Year=<b>{selectedYear}</b>, Species=<b>{selectedSpecies}</b>, Ecosystem=<b>{selectedEcosystem}</b> <br></br>NOTE: filters do not work on this one!</p>}
       <MapContainer
         center={position}
         zoom={6.5}
@@ -114,55 +82,30 @@ export default function Map({
               return { fillOpacity: 0, opacity: 0 };
             }
 
-            if (mapType == "noncomm") {
-              // if the map type is noncommercial, the passed data is already filtered by Pelita's EcosystemDashboard.tsx file.
-              value = feature.properties.total_exchange_value || 0;
-              return {
-                fillColor: getColor(value),
-                fillOpacity: 0.65,
-                color: "#222",
-                weight: 0.8,
-              };
-
-            } else {
-              // if the map type is commercial, the passed data is not filtered. Conduct the filtering.
-              value = retrieveCommValues(feature)
-              return {
-                fillColor: "cornflowerblue",
-                fillOpacity: 0.65,
-                color: "#222",
-                weight: 0.8,
-              };
-            }
+            // if the map type is noncommercial, the passed data is already filtered by Pelita's EcosystemDashboard.tsx file.
+            value = feature.properties.total_exchange_value || 0;
+            return {
+              fillColor: getColor(value),
+              fillOpacity: 0.65,
+              color: "#222",
+              weight: 0.8,
+            };
           }}
 
           onEachFeature={(feature: any, layer: any) => {
             let value, tooltipContent;
-            if (mapType == "noncomm") {
-              // if it's non-commercial - this is Pelita's code.
-              value = feature.properties.total_exchange_value || 0;
-              tooltipContent = `
-                <div style="font-size:13px">
-                  <strong>County/Moku: ${feature.properties.county}</strong><br/>
-                  Exchange Value: ${formatCurrency(value)}<br/>
-                  Year: ${selectedYear ?? "All Years"}<br/>
-                  Species: ${selectedSpecies || "All"}<br/>
-                  Ecosystem: ${selectedEcosystem || "All"}
-                </div>
-              `
-            } else {
-              // if it's commercial - this is Micaiah's code.
-              value = retrieveCommValues(feature)
-              tooltipContent = `
-                <div style="font-size:13px">
-                  <strong>Moku: ${feature.properties.area_id}</strong><br/>
-                  Exchange Value: ${formatCurrency(value)}<br/>
-                  Year: ${selectedYear ?? "All Years"}<br/>
-                  Species: ${selectedSpecies || "All"}<br/>
-                  Ecosystem: ${selectedEcosystem || "All"}
-                </div>
-              `
-            }
+
+            // if it's non-commercial - this is Pelita's code.
+            value = feature.properties.total_exchange_value || 0;
+            tooltipContent = `
+              <div style="font-size:13px">
+                <strong>County/Moku: ${feature.properties.county}</strong><br/>
+                Exchange Value: ${formatCurrency(value)}<br/>
+                Year: ${selectedYear ?? "All Years"}<br/>
+                Species: ${selectedSpecies || "All"}<br/>
+                Ecosystem: ${selectedEcosystem || "All"}
+              </div>
+            `
 
             layer.bindTooltip(tooltipContent, { sticky: true });
 

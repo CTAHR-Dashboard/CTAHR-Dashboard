@@ -1,24 +1,24 @@
-import { render, screen } from '@testing-library/react';
-import FilterSidebar from '../components/dashboard/FilterSidebar';
+import { render, screen } from "@testing-library/react";
+import FilterSidebar from "../FilterSidebar";
 
-describe('FilterSidebar', () => {
-  it('renders the logo', () => {
+describe("FilterSidebar", () => {
+  test("renders the Oleson Lab logo", () => {
     render(<FilterSidebar />);
-    expect(screen.getByAltText(/oleson lab/i)).toBeInTheDocument();
+
+    const logo = screen.getByAltText("Oleson Lab");
+    expect(logo).toBeInTheDocument();
   });
 
-  it('renders the main title', () => {
+  test("renders the dashboard title", () => {
     render(<FilterSidebar />);
-    expect(screen.getByText(/hawaiʻi/i)).toBeInTheDocument();
+
+    expect(screen.getByText("Hawaiʻi")).toBeInTheDocument();
+    expect(screen.getByText("Ecosystem Accounts")).toBeInTheDocument();
   });
 
-  it('renders the subtitle', () => {
+  test("renders Fisheries as the active section", () => {
     render(<FilterSidebar />);
-    expect(screen.getByText(/ecosystem accounts/i)).toBeInTheDocument();
-  });
 
-  it('renders the fisheries navigation item', () => {
-    render(<FilterSidebar />);
-    expect(screen.getByText(/fisheries/i)).toBeInTheDocument();
+    expect(screen.getByText("Fisheries")).toBeInTheDocument();
   });
 });

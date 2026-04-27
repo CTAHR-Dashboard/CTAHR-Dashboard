@@ -25,6 +25,8 @@ interface DataRow {
 interface ExtentsRow {
   year: number;
   moku_olelo: string;
+  island_olelo: string;
+  moku_key: string; // "moku_olelo (island_olelo)" — globally unique
   realm: string;
   ecosystem_type: string;
   area_km2: number;
@@ -97,7 +99,7 @@ function parseCommGeoJSON(geojson: GeoJSON): DataRow[] {
   return rows;
 }
 
-function LineChart({ entries }: { entries: [number, number][] }) {
+function LineChart({ entries, formatValue }: { entries: [number, number][]; formatValue?: (v: number) => string }) {
   const [hovered, setHovered] = useState<number | null>(null);
 
   if (entries.length < 2) return null;
@@ -134,7 +136,9 @@ function LineChart({ entries }: { entries: [number, number][] }) {
   }
 
   const formatK = (v: number) =>
-    v >= 1_000_000
+    formatValue
+      ? formatValue(v)
+      : v >= 1_000_000
       ? `$${(v / 1_000_000).toFixed(1)}M`
       : v >= 1_000
       ? `$${(v / 1_000).toFixed(0)}K`
@@ -249,12 +253,15 @@ export default function EcosystemDashboard({ geoJsonPath, datasetLabel }: Dashbo
   // Extents data + filters
   const [extentsData, setExtentsData] = useState<ExtentsRow[]>([]);
   const [extentsGeoData, setExtentsGeoData] = useState<GeoJSON | null>(null);
-  const [selectedExtentsYear, setSelectedExtentsYear] = useState<number | null>(2013);
+  const [selectedExtentsYearStart, setSelectedExtentsYearStart] = useState<number | null>(null);
+  const [selectedExtentsYearEnd, setSelectedExtentsYearEnd] = useState<number | null>(null);
   const [selectedExtentsEcosystem, setSelectedExtentsEcosystem] = useState("");
   const [selectedExtentsMoku, setSelectedExtentsMoku] = useState("");
 
   const [downloadCounty, setDownloadCounty] = useState("");
   const [downloadMode, setDownloadMode] = useState<"ALL_SEPARATE" | "ONE_COUNTY">("ONE_COUNTY");
+  const [downloadExtentsMokus, setDownloadExtentsMokus] = useState<string[]>([]);
+  const [downloadExtentsEcosystems, setDownloadExtentsEcosystems] = useState<string[]>([]);
 
   // Load fisheries data
   useEffect(() => {
@@ -300,9 +307,13 @@ export default function EcosystemDashboard({ geoJsonPath, datasetLabel }: Dashbo
       const rows: ExtentsRow[] = geo.features
         .map((feat: GeoFeature) => {
           const p = feat.properties;
+          const moku_olelo = String(p.moku_olelo ?? "");
+          const island_olelo = String(p.island_olelo ?? "");
           return {
             year: Number(p.year),
-            moku_olelo: String(p.moku_olelo ?? ""),
+            moku_olelo,
+            island_olelo,
+            moku_key: `${moku_olelo} (${island_olelo})`,
             realm: String(p.realm ?? ""),
             ecosystem_type: String(p.ecosystem_type ?? ""),
             area_km2: Number(p.area_km2) || 0,
@@ -367,13 +378,14 @@ export default function EcosystemDashboard({ geoJsonPath, datasetLabel }: Dashbo
   // ----------------------------------
   const extentsYears = [...new Set(extentsData.map((d) => d.year))].sort((a, b) => a - b);
   const extentsEcosystems = [...new Set(extentsData.map((d) => d.ecosystem_type))].sort();
-  const extentsMokus = [...new Set(extentsData.map((d) => d.moku_olelo))].sort();
+  const extentsMokus = [...new Set(extentsData.map((d) => d.moku_key))].sort();
 
   const filteredExtentsRows = extentsData.filter((row) => {
     return (
-      (selectedExtentsYear === null || row.year === selectedExtentsYear) &&
+      (selectedExtentsYearStart === null || row.year >= selectedExtentsYearStart) &&
+      (selectedExtentsYearEnd === null || row.year <= selectedExtentsYearEnd) &&
       (selectedExtentsEcosystem === "" || row.ecosystem_type === selectedExtentsEcosystem) &&
-      (selectedExtentsMoku === "" || row.moku_olelo === selectedExtentsMoku)
+      (selectedExtentsMoku === "" || row.moku_key === selectedExtentsMoku)
     );
   });
 
@@ -387,9 +399,9 @@ export default function EcosystemDashboard({ geoJsonPath, datasetLabel }: Dashbo
     "Freshwater Wetlands", "Grass/Shrub", "Pasture", "Tree Cover",
   ]);
 
-  // Sum area_km2 per moku+realm so each polygon gets realm-appropriate values
+  // Sum area_km2 per moku_key+realm so each polygon gets realm-appropriate values
   const extentsTotalsByMokuRealm: Record<string, number> = {};
-  // Also sum per moku only (for viz panel totals)
+  // Also sum per moku_key (for viz panel totals)
   const extentsTotalsByMoku: Record<string, number> = {};
   filteredExtentsRows.forEach((row) => {
     const realmForEco = MARINE_ECOSYSTEMS.has(row.ecosystem_type)
@@ -397,25 +409,26 @@ export default function EcosystemDashboard({ geoJsonPath, datasetLabel }: Dashbo
       : TERRESTRIAL_ECOSYSTEMS.has(row.ecosystem_type)
       ? "Terrestrial"
       : row.realm;
-    const realmKey = `${row.moku_olelo}||${realmForEco}`;
+    const realmKey = `${row.moku_key}||${realmForEco}`;
     extentsTotalsByMokuRealm[realmKey] = (extentsTotalsByMokuRealm[realmKey] || 0) + row.area_km2;
-    extentsTotalsByMoku[row.moku_olelo] = (extentsTotalsByMoku[row.moku_olelo] || 0) + row.area_km2;
+    extentsTotalsByMoku[row.moku_key] = (extentsTotalsByMoku[row.moku_key] || 0) + row.area_km2;
   });
 
   // Only show moku+realm combos that have data after filtering
   const activeMokuRealms = new Set(Object.keys(extentsTotalsByMokuRealm));
-  const activeMokus = new Set(filteredExtentsRows.map((r) => r.moku_olelo));
 
-  // Deduplicate to one geometry per moku+realm, restricted to active combos
+  // Deduplicate to one geometry per moku_key+realm, restricted to active combos
   const extentsAggregated: GeoJSON | null = extentsGeoData
     ? (() => {
         const seenMokuRealm = new Set<string>();
         const deduped = extentsGeoData.features.filter((feat: GeoFeature) => {
           const moku = String(feat.properties.moku_olelo ?? "");
+          const island = String(feat.properties.island_olelo ?? "");
+          const moku_key = `${moku} (${island})`;
           const realm = String(feat.properties.realm ?? "");
-          const key = `${moku}||${realm}`;
+          const key = `${moku_key}||${realm}`;
           if (!activeMokuRealms.has(key)) return false;
-          if (selectedExtentsMoku !== "" && moku !== selectedExtentsMoku) return false;
+          if (selectedExtentsMoku !== "" && moku_key !== selectedExtentsMoku) return false;
           if (seenMokuRealm.has(key)) return false;
           seenMokuRealm.add(key);
           return true;
@@ -424,12 +437,15 @@ export default function EcosystemDashboard({ geoJsonPath, datasetLabel }: Dashbo
           ...extentsGeoData,
           features: deduped.map((feat: GeoFeature) => {
             const moku = String(feat.properties.moku_olelo ?? "");
+            const island = String(feat.properties.island_olelo ?? "");
+            const moku_key = `${moku} (${island})`;
             const realm = String(feat.properties.realm ?? "");
-            const key = `${moku}||${realm}`;
+            const key = `${moku_key}||${realm}`;
             return {
               ...feat,
               properties: {
                 ...feat.properties,
+                moku_key,  // attach so Map can use it as click key
                 total_area_km2: extentsTotalsByMokuRealm[key] || 0,
               },
             };
@@ -454,7 +470,7 @@ export default function EcosystemDashboard({ geoJsonPath, datasetLabel }: Dashbo
             .includes(row.ecosystem_type)
             ? "Marine"
             : "Terrestrial";
-        const key = `${row.moku_olelo}||${realmForEco}`;
+        const key = `${row.moku_key}||${realmForEco}`;
         allTotals[key] = (allTotals[key] || 0) + row.area_km2;
       });
       const sorted = Object.values(allTotals).sort((a, b) => a - b);
@@ -535,6 +551,30 @@ export default function EcosystemDashboard({ geoJsonPath, datasetLabel }: Dashbo
     });
   };
 
+  const handleExtentsDownload = () => {
+    const safe = (s: string) => s.replace(/[^\w\-]+/g, "_");
+    const mokusToDownload = downloadExtentsMokus.length > 0 ? downloadExtentsMokus : null;
+    const ecosToDownload = downloadExtentsEcosystems.length > 0 ? downloadExtentsEcosystems : null;
+
+    const rows = extentsData.filter((r) => {
+      return (
+        (mokusToDownload === null || mokusToDownload.includes(r.moku_key)) &&
+        (ecosToDownload === null || ecosToDownload.includes(r.ecosystem_type))
+      );
+    });
+
+    const cols: (keyof ExtentsRow)[] = ["year", "moku_olelo", "island_olelo", "realm", "ecosystem_type", "area_km2"];
+    const escape = (v: unknown) => {
+      const s = String(v ?? "");
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const csv = [cols.join(","), ...rows.map((r) => cols.map((c) => escape(r[c])).join(","))].join("\n");
+
+    const mokusLabel = mokusToDownload ? safe(mokusToDownload.join("-")).slice(0, 40) : "all-mokus";
+    const ecosLabel = ecosToDownload ? safe(ecosToDownload.join("-")).slice(0, 40) : "all-ecosystems";
+    triggerCsvDownload(`extents_${mokusLabel}_${ecosLabel}.csv`, csv);
+  };
+
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat("en-US", {
       style: "currency",
@@ -610,9 +650,16 @@ export default function EcosystemDashboard({ geoJsonPath, datasetLabel }: Dashbo
     return parts.join(" ");
   })();
 
-  // Extents viz panel data
+  // Extents viz panel data — uses filteredExtentsRows which already has year range applied
+  const extentsAllPanelRows = selectedArea
+    ? extentsData.filter((r) => r.moku_key === selectedArea)
+    : [];
+
+  // Available years for this moku (all years, for reference in insight text)
+  const extentsVizYears = [...new Set(extentsAllPanelRows.map((r) => r.year))].sort((a, b) => a - b);
+
   const extentsPanelRows = selectedArea
-    ? filteredExtentsRows.filter((r) => r.moku_olelo === selectedArea)
+    ? filteredExtentsRows.filter((r) => r.moku_key === selectedArea)
     : [];
 
   const extentsByYear: Record<number, number> = {};
@@ -631,6 +678,43 @@ export default function EcosystemDashboard({ geoJsonPath, datasetLabel }: Dashbo
   const extentsTotalArea = extentsPanelRows.reduce((sum, r) => sum + r.area_km2, 0);
   const maxExtentsEco = Math.max(...extentsEcoEntries.map(([, v]) => v), 1);
   const maxExtentsRealm = Math.max(...extentsRealmEntries.map(([, v]) => v), 1);
+
+  // Per-ecosystem change between first and last year in viz range
+  const extentsEcoByYear: Record<string, Record<number, number>> = {};
+  extentsPanelRows.forEach((row) => {
+    if (!extentsEcoByYear[row.ecosystem_type]) extentsEcoByYear[row.ecosystem_type] = {};
+    extentsEcoByYear[row.ecosystem_type][row.year] =
+      (extentsEcoByYear[row.ecosystem_type][row.year] || 0) + row.area_km2;
+  });
+
+  // Build insight: total % change + ecosystem with biggest absolute change
+  const extentsInsight = (() => {
+    if (extentsYearEntries.length < 2) return null;
+    const firstYr = extentsYearEntries[0][0];
+    const lastYr = extentsYearEntries[extentsYearEntries.length - 1][0];
+    const firstTotal = extentsYearEntries[0][1];
+    const lastTotal = extentsYearEntries[extentsYearEntries.length - 1][1];
+    if (firstTotal <= 0) return null;
+    const totalPct = ((lastTotal - firstTotal) / firstTotal) * 100;
+    const totalIsUp = totalPct > 0;
+
+    // Find ecosystem with biggest absolute change between first and last year
+    let biggestEco = "";
+    let biggestChange = 0;
+    let biggestPct = 0;
+    Object.entries(extentsEcoByYear).forEach(([eco, byYr]) => {
+      const ecoFirst = byYr[firstYr] || 0;
+      const ecoLast = byYr[lastYr] || 0;
+      const abs = Math.abs(ecoLast - ecoFirst);
+      if (abs > biggestChange) {
+        biggestChange = abs;
+        biggestEco = eco;
+        biggestPct = ecoFirst > 0 ? ((ecoLast - ecoFirst) / ecoFirst) * 100 : 0;
+      }
+    });
+
+    return { totalPct, totalIsUp, firstYr, lastYr, biggestEco, biggestPct, biggestChange };
+  })();
 
   return (
     <div className="dashboard-container">
@@ -684,6 +768,22 @@ export default function EcosystemDashboard({ geoJsonPath, datasetLabel }: Dashbo
             {/* ── EXTENTS FILTERS ── */}
             {layer === "extents" && (
               <>
+                {/* Reset */}
+                <div className="rp-section">
+                  <button
+                    className="filter-btn"
+                    style={{ width: "100%" }}
+                    onClick={() => {
+                      setSelectedExtentsMoku("");
+                      setSelectedExtentsYearStart(null);
+                      setSelectedExtentsYearEnd(null);
+                      setSelectedExtentsEcosystem("");
+                    }}
+                  >
+                    ↺ Reset Filters
+                  </button>
+                </div>
+
                 <div className="rp-section">
                   <div className="filter-label">Moku</div>
                   <select
@@ -699,23 +799,41 @@ export default function EcosystemDashboard({ geoJsonPath, datasetLabel }: Dashbo
                 </div>
 
                 <div className="rp-section">
-                  <div className="filter-label">Year</div>
-                  <select
-                    className="filter-select"
-                    value={selectedExtentsYear ?? ""}
-                    onChange={(e) =>
-                      setSelectedExtentsYear(e.target.value === "" ? null : Number(e.target.value))
-                    }
-                  >
-                    {extentsYears.map((y) => (
-                      <option key={y} value={y}>{y}</option>
-                    ))}
-                  </select>
+                  <div className="filter-label">Year Range</div>
+                  <div className="year-range-row">
+                    <select
+                      className="filter-select"
+                      value={selectedExtentsYearStart ?? ""}
+                      onChange={(e) => {
+                        const val = e.target.value === "" ? null : Number(e.target.value);
+                        setSelectedExtentsYearStart(val);
+                        if (val !== null && selectedExtentsYearEnd !== null && val > selectedExtentsYearEnd) {
+                          setSelectedExtentsYearEnd(null);
+                        }
+                      }}
+                    >
+                      <option value="">Start</option>
+                      {extentsYears.map((y) => <option key={y} value={y}>{y}</option>)}
+                    </select>
+                    <span className="year-range-arrow">→</span>
+                    <select
+                      className="filter-select"
+                      value={selectedExtentsYearEnd ?? ""}
+                      onChange={(e) =>
+                        setSelectedExtentsYearEnd(e.target.value === "" ? null : Number(e.target.value))
+                      }
+                    >
+                      <option value="">End</option>
+                      {extentsYears
+                        .filter((y) => selectedExtentsYearStart === null || y >= selectedExtentsYearStart)
+                        .map((y) => <option key={y} value={y}>{y}</option>)}
+                    </select>
+                  </div>
                 </div>
 
                 <div className="rp-section">
                   <div className="filter-label">Ecosystem Type</div>
-                  <div className="filter-label" style={{ fontSize: "10px", opacity: 0.6, marginBottom: 4 }}>Marine</div>
+                  <div className="filter-sublabel">Marine</div>
                   <div className="button-group" style={{ marginBottom: 8 }}>
                     {[...MARINE_ECOSYSTEMS].sort().map((e) => (
                       <button
@@ -727,7 +845,7 @@ export default function EcosystemDashboard({ geoJsonPath, datasetLabel }: Dashbo
                       </button>
                     ))}
                   </div>
-                  <div className="filter-label" style={{ fontSize: "10px", opacity: 0.6, marginBottom: 4 }}>Terrestrial</div>
+                  <div className="filter-sublabel mt">Terrestrial</div>
                   <div className="button-group">
                     {[...TERRESTRIAL_ECOSYSTEMS].sort().map((e) => (
                       <button
@@ -740,12 +858,88 @@ export default function EcosystemDashboard({ geoJsonPath, datasetLabel }: Dashbo
                     ))}
                   </div>
                 </div>
+
+                {/* Extents Download */}
+                <div className="rp-section">
+                  <div className="filter-label">Download CSV</div>
+
+                  <div className="filter-sublabel mt">
+                    Moku (hold Ctrl/⌘ to select multiple)
+                  </div>
+                  <select
+                    multiple
+                    className="filter-select"
+                    style={{ height: 100 }}
+                    value={downloadExtentsMokus}
+                    onChange={(e) =>
+                      setDownloadExtentsMokus(Array.from(e.target.selectedOptions).map((o) => o.value))
+                    }
+                  >
+                    {extentsMokus.map((m) => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
+
+                  <div className="filter-sublabel mt">
+                    Ecosystem (hold Ctrl/⌘ to select multiple)
+                  </div>
+                  <select
+                    multiple
+                    className="filter-select"
+                    style={{ height: 100 }}
+                    value={downloadExtentsEcosystems}
+                    onChange={(e) =>
+                      setDownloadExtentsEcosystems(Array.from(e.target.selectedOptions).map((o) => o.value))
+                    }
+                  >
+                    {extentsEcosystems.map((e) => (
+                      <option key={e} value={e}>{e}</option>
+                    ))}
+                  </select>
+
+                  <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                    <button
+                      className="filter-btn"
+                      style={{ flex: 1 }}
+                      onClick={() => { setDownloadExtentsMokus([]); setDownloadExtentsEcosystems([]); }}
+                    >
+                      Clear
+                    </button>
+                    <button
+                      className="filter-btn"
+                      style={{ flex: 2 }}
+                      onClick={handleExtentsDownload}
+                    >
+                      Download CSV
+                    </button>
+                  </div>
+                  <div className="filter-hint">
+                    No selection = all mokus / all ecosystems
+                  </div>
+                </div>
               </>
             )}
 
             {/* ── FISHERIES FILTERS ── */}
             {layer === "fisheries" && (
               <>
+                {/* Reset */}
+                <div className="rp-section">
+                  <button
+                    className="filter-btn"
+                    style={{ width: "100%" }}
+                    onClick={() => {
+                      setSelectedCounty("");
+                      setSelectedYearStart(null);
+                      setSelectedYearEnd(null);
+                      setSelectedSpecies("");
+                      setSelectedEcosystem("");
+                    }}
+                  >
+                    ↺ Reset Filters
+                  </button>
+                </div>
+
                 {/* Data Source */}
                 <div className="rp-section">
                   <div className="filter-label">Data Source</div>
@@ -781,9 +975,13 @@ export default function EcosystemDashboard({ geoJsonPath, datasetLabel }: Dashbo
                     <select
                       className="filter-select"
                       value={selectedYearStart ?? ""}
-                      onChange={(e) =>
-                        setSelectedYearStart(e.target.value === "" ? null : Number(e.target.value))
-                      }
+                      onChange={(e) => {
+                        const val = e.target.value === "" ? null : Number(e.target.value);
+                        setSelectedYearStart(val);
+                        if (val !== null && selectedYearEnd !== null && val > selectedYearEnd) {
+                          setSelectedYearEnd(null);
+                        }
+                      }}
                     >
                       <option value="">Start</option>
                       {years.map((y) => <option key={y}>{y}</option>)}
@@ -797,7 +995,9 @@ export default function EcosystemDashboard({ geoJsonPath, datasetLabel }: Dashbo
                       }
                     >
                       <option value="">End</option>
-                      {years.map((y) => <option key={y}>{y}</option>)}
+                      {years
+                        .filter((y) => selectedYearStart === null || y >= selectedYearStart)
+                        .map((y) => <option key={y}>{y}</option>)}
                     </select>
                   </div>
                 </div>
@@ -903,7 +1103,13 @@ export default function EcosystemDashboard({ geoJsonPath, datasetLabel }: Dashbo
                       {extentsPanelRows.length} record{extentsPanelRows.length !== 1 ? "s" : ""}&nbsp;&mdash;&nbsp;Total {extentsTotalArea.toFixed(2)} km²
                     </div>
                   </div>
-                  <button className="data-panel-close" onClick={() => setSelectedArea("")}>✕</button>
+                  <button className="data-panel-close" onClick={() => {
+                    setSelectedArea("");
+                    setSelectedExtentsMoku("");
+                    setSelectedExtentsYearStart(null);
+                    setSelectedExtentsYearEnd(null);
+                    setSelectedExtentsEcosystem("");
+                  }}>✕</button>
                 </div>
 
                 {/* Hero metric card */}
@@ -911,39 +1117,34 @@ export default function EcosystemDashboard({ geoJsonPath, datasetLabel }: Dashbo
                   <div className="metric-hero-value">{extentsTotalArea.toFixed(2)} km²</div>
                   <div className="metric-hero-label">TOTAL ECOSYSTEM AREA</div>
 
-                  {(() => {
-                    if (extentsYearEntries.length < 2) return null;
-                    const firstVal = extentsYearEntries[0][1];
-                    const lastVal = extentsYearEntries[extentsYearEntries.length - 1][1];
-                    const firstYr = extentsYearEntries[0][0];
-                    const lastYr = extentsYearEntries[extentsYearEntries.length - 1][0];
-                    if (firstVal <= 0) return null;
-                    const pct = ((lastVal - firstVal) / firstVal) * 100;
-                    const isUp = pct > 0;
-                    return (
-                      <>
-                        <div className="metric-trend">
-                          <span className="metric-trend-arrow">{isUp ? "▲" : "▼"}</span>
-                          <span className="metric-trend-pct">{Math.abs(pct).toFixed(1)}%</span>
-                          <span className={`metric-trend-label ${isUp ? "trend-up" : "trend-down"}`}>
-                            {isUp ? "Increasing" : "Decreasing"}
-                          </span>
-                        </div>
-                        <p className="metric-summary">
-                          Area {isUp ? "increased" : "decreased"} {Math.abs(pct).toFixed(1)}% from {firstYr} to {lastYr}.
-                          {extentsEcoEntries[0] ? ` ${extentsEcoEntries[0][0]} was the largest ecosystem type.` : ""}
-                          {extentsRealmEntries[0] ? ` ${extentsRealmEntries[0][0]} realm contributed most.` : ""}
-                        </p>
-                      </>
-                    );
-                  })()}
+                  {extentsInsight && (
+                    <>
+                      <div className="metric-trend">
+                        <span className="metric-trend-arrow">{extentsInsight.totalIsUp ? "▲" : "▼"}</span>
+                        <span className="metric-trend-pct">{Math.abs(extentsInsight.totalPct).toFixed(1)}%</span>
+                        <span className={`metric-trend-label ${extentsInsight.totalIsUp ? "trend-up" : "trend-down"}`}>
+                          {extentsInsight.totalIsUp ? "Increasing" : "Decreasing"}
+                        </span>
+                      </div>
+                      <p className="metric-summary">
+                        Total area {extentsInsight.totalIsUp ? "increased" : "decreased"} by{" "}
+                        <strong>{Math.abs(extentsInsight.totalPct).toFixed(1)}%</strong> from{" "}
+                        {extentsInsight.firstYr} to {extentsInsight.lastYr}.
+                        {extentsInsight.biggestEco && (
+                          <> The biggest change was in <strong>{extentsInsight.biggestEco}</strong> area
+                          , which {extentsInsight.biggestPct >= 0 ? "grew" : "shrank"} by{" "}
+                          {Math.abs(extentsInsight.biggestPct).toFixed(1)}% ({extentsInsight.biggestChange.toFixed(2)} km²).</>
+                        )}
+                      </p>
+                    </>
+                  )}
                 </div>
 
                 {/* Area trend line chart */}
                 {extentsYearEntries.length > 0 && (
                   <div className="chart-section">
                     <div className="chart-section-label">Area Trend by Year (km²)</div>
-                    <LineChart entries={extentsYearEntries} />
+                    <LineChart entries={extentsYearEntries} formatValue={(v) => `${v.toFixed(2)} km²`} />
                   </div>
                 )}
 
@@ -1031,7 +1232,14 @@ export default function EcosystemDashboard({ geoJsonPath, datasetLabel }: Dashbo
                       {tableRows.length} record{tableRows.length !== 1 ? "s" : ""}&nbsp;&mdash;&nbsp;Total {formatCurrency(tableTotal)}
                     </div>
                   </div>
-                  <button className="data-panel-close" onClick={() => setSelectedArea("")}>✕</button>
+                  <button className="data-panel-close" onClick={() => {
+                    setSelectedArea("");
+                    setSelectedCounty("");
+                    setSelectedYearStart(null);
+                    setSelectedYearEnd(null);
+                    setSelectedSpecies("");
+                    setSelectedEcosystem("");
+                  }}>✕</button>
                 </div>
 
                 <div className="metric-hero-card">

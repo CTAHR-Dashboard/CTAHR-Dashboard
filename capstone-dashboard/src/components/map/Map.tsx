@@ -85,7 +85,7 @@ function GeoJSONLayer({
       style: (feature: any) => {
         const value = feature?.properties?.[field] || 0;
         const featureKey = isExtents
-          ? feature?.properties?.moku_olelo
+          ? feature?.properties?.moku_key
           : mapType === "comm"
           ? feature?.properties?.area_id
           : feature?.properties?.county;
@@ -131,7 +131,7 @@ function GeoJSONLayer({
         layer.on({
           click: () => {
             const key = isExtents
-              ? feature.properties.moku_olelo
+              ? feature.properties.moku_key
               : mapType === "comm"
               ? feature.properties.area_id
               : feature.properties.county;
@@ -142,7 +142,7 @@ function GeoJSONLayer({
           },
           mouseout: (e: any) => {
             const featureKey = isExtents
-              ? feature.properties.moku_olelo
+              ? feature.properties.moku_key
               : mapType === "comm"
               ? feature.properties.area_id
               : feature.properties.county;

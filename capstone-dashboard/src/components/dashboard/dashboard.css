@@ -189,8 +189,26 @@
 .filter-label {
   font-size: 10px;
   text-transform: uppercase;
-  color: #666;
+  color: #ccc;
   letter-spacing: 0.4px;
+}
+
+/* Sublabels like "Marine", "Terrestrial", "Moku (hold Ctrl...)" */
+.filter-sublabel {
+  font-size: 10px;
+  color: #ccc;
+  letter-spacing: 0.3px;
+  margin-bottom: 4px;
+}
+
+.filter-sublabel.mt {
+  margin-top: 8px;
+}
+
+.filter-hint {
+  font-size: 10px;
+  color: #888;
+  margin-top: 4px;
 }
 
 .filter-select {
@@ -201,6 +219,11 @@
   padding: 8px 10px;
   border-radius: 6px;
   font-size: 13px;
+}
+
+.filter-select option {
+  color: #fff;
+  background: #1a1a1a;
 }
 
 .filter-select:focus {

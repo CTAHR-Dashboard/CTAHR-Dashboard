@@ -651,35 +651,42 @@ export default function EcosystemDashboard({ geoJsonPath, datasetLabel }: Dashbo
   })();
 
   // Extents viz panel data — uses filteredExtentsRows which already has year range applied
-  const extentsAllPanelRows = selectedArea
-    ? extentsData.filter((r) => r.moku_key === selectedArea)
-    : [];
-
-  // Available years for this moku (all years, for reference in insight text)
-  const extentsVizYears = [...new Set(extentsAllPanelRows.map((r) => r.year))].sort((a, b) => a - b);
-
   const extentsPanelRows = selectedArea
     ? filteredExtentsRows.filter((r) => r.moku_key === selectedArea)
     : [];
 
+  // Year totals identify the latest snapshot and comparison range.
   const extentsByYear: Record<number, number> = {};
-  const extentsByEcosystem: Record<string, number> = {};
-  const extentsByRealm: Record<string, number> = {};
   extentsPanelRows.forEach((row) => {
     extentsByYear[row.year] = (extentsByYear[row.year] || 0) + row.area_km2;
-    extentsByEcosystem[row.ecosystem_type] = (extentsByEcosystem[row.ecosystem_type] || 0) + row.area_km2;
-    extentsByRealm[row.realm] = (extentsByRealm[row.realm] || 0) + row.area_km2;
   });
   const extentsYearEntries = Object.entries(extentsByYear)
     .map(([k, v]) => [Number(k), v] as [number, number])
     .sort(([a], [b]) => a - b);
+
+  // Headline, by ecosystem, and by realm are a single year snapshot (latest in range).
+  // Each year is a full ecosystem inventory of the moku, so summing years would
+  // multiply the moku footprint by the number of years.
+  const extentsSnapshotYear = extentsYearEntries.length > 0
+    ? extentsYearEntries[extentsYearEntries.length - 1][0]
+    : null;
+  const extentsSnapshotRows = extentsSnapshotYear !== null
+    ? extentsPanelRows.filter((r) => r.year === extentsSnapshotYear)
+    : [];
+
+  const extentsByEcosystem: Record<string, number> = {};
+  const extentsByRealm: Record<string, number> = {};
+  extentsSnapshotRows.forEach((row) => {
+    extentsByEcosystem[row.ecosystem_type] = (extentsByEcosystem[row.ecosystem_type] || 0) + row.area_km2;
+    extentsByRealm[row.realm] = (extentsByRealm[row.realm] || 0) + row.area_km2;
+  });
   const extentsEcoEntries = Object.entries(extentsByEcosystem).sort(([, a], [, b]) => b - a);
   const extentsRealmEntries = Object.entries(extentsByRealm).sort(([, a], [, b]) => b - a);
-  const extentsTotalArea = extentsPanelRows.reduce((sum, r) => sum + r.area_km2, 0);
+  const extentsTotalArea = extentsSnapshotRows.reduce((sum, r) => sum + r.area_km2, 0);
   const maxExtentsEco = Math.max(...extentsEcoEntries.map(([, v]) => v), 1);
   const maxExtentsRealm = Math.max(...extentsRealmEntries.map(([, v]) => v), 1);
 
-  // Per-ecosystem change between first and last year in viz range
+  // Per ecosystem change between first and last year in viz range
   const extentsEcoByYear: Record<string, Record<number, number>> = {};
   extentsPanelRows.forEach((row) => {
     if (!extentsEcoByYear[row.ecosystem_type]) extentsEcoByYear[row.ecosystem_type] = {};
@@ -687,34 +694,48 @@ export default function EcosystemDashboard({ geoJsonPath, datasetLabel }: Dashbo
       (extentsEcoByYear[row.ecosystem_type][row.year] || 0) + row.area_km2;
   });
 
-  // Build insight: total % change + ecosystem with biggest absolute change
+  // Composition insight. Moku boundaries are fixed, so the meaningful change is
+  // how individual ecosystems gained or lost area within the moku, not the total.
   const extentsInsight = (() => {
     if (extentsYearEntries.length < 2) return null;
     const firstYr = extentsYearEntries[0][0];
     const lastYr = extentsYearEntries[extentsYearEntries.length - 1][0];
-    const firstTotal = extentsYearEntries[0][1];
-    const lastTotal = extentsYearEntries[extentsYearEntries.length - 1][1];
-    if (firstTotal <= 0) return null;
-    const totalPct = ((lastTotal - firstTotal) / firstTotal) * 100;
-    const totalIsUp = totalPct > 0;
 
-    // Find ecosystem with biggest absolute change between first and last year
-    let biggestEco = "";
-    let biggestChange = 0;
-    let biggestPct = 0;
-    Object.entries(extentsEcoByYear).forEach(([eco, byYr]) => {
-      const ecoFirst = byYr[firstYr] || 0;
-      const ecoLast = byYr[lastYr] || 0;
-      const abs = Math.abs(ecoLast - ecoFirst);
-      if (abs > biggestChange) {
-        biggestChange = abs;
-        biggestEco = eco;
-        biggestPct = ecoFirst > 0 ? ((ecoLast - ecoFirst) / ecoFirst) * 100 : 0;
-      }
+    type EcoChange = {
+      eco: string;
+      firstArea: number;
+      lastArea: number;
+      delta: number;
+      pct: number;
+    };
+
+    const changes: EcoChange[] = Object.entries(extentsEcoByYear).map(([eco, byYr]) => {
+      const firstArea = byYr[firstYr] || 0;
+      const lastArea = byYr[lastYr] || 0;
+      const delta = lastArea - firstArea;
+      const pct = firstArea > 0 ? (delta / firstArea) * 100 : 0;
+      return { eco, firstArea, lastArea, delta, pct };
     });
 
-    return { totalPct, totalIsUp, firstYr, lastYr, biggestEco, biggestPct, biggestChange };
+    if (changes.length === 0) return null;
+
+    const byDelta = changes.slice().sort((a, b) => b.delta - a.delta);
+    const topGainer = byDelta[0].delta > 0 ? byDelta[0] : null;
+    const topLoser = byDelta[byDelta.length - 1].delta < 0 ? byDelta[byDelta.length - 1] : null;
+
+    // Headline = ecosystem with biggest absolute change (drives the trend chip)
+    const headline = changes.slice().sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))[0];
+    const hasChange = Math.abs(headline.delta) > 0.005;
+
+    return { firstYr, lastYr, topGainer, topLoser, headline, hasChange };
   })();
+
+  // Year by year area for the headline ecosystem. Used by the trend line chart.
+  const extentsHeadlineEntries: [number, number][] = extentsInsight
+    ? Object.entries(extentsEcoByYear[extentsInsight.headline.eco] || {})
+        .map(([yr, v]) => [Number(yr), v] as [number, number])
+        .sort(([a], [b]) => a - b)
+    : [];
 
   return (
     <div className="dashboard-container">
@@ -1100,7 +1121,10 @@ export default function EcosystemDashboard({ geoJsonPath, datasetLabel }: Dashbo
                   <div>
                     <div className="data-panel-title">{selectedArea}</div>
                     <div className="data-panel-subtitle">
-                      {extentsPanelRows.length} record{extentsPanelRows.length !== 1 ? "s" : ""}&nbsp;&mdash;&nbsp;Total {extentsTotalArea.toFixed(2)} km²
+                      {extentsPanelRows.length} record{extentsPanelRows.length !== 1 ? "s" : ""}
+                      {extentsSnapshotYear !== null && (
+                        <>&nbsp;&mdash;&nbsp;{extentsSnapshotYear}: {extentsTotalArea.toFixed(2)} km²</>
+                      )}
                     </div>
                   </div>
                   <button className="data-panel-close" onClick={() => {
@@ -1115,36 +1139,56 @@ export default function EcosystemDashboard({ geoJsonPath, datasetLabel }: Dashbo
                 {/* Hero metric card */}
                 <div className="metric-hero-card">
                   <div className="metric-hero-value">{extentsTotalArea.toFixed(2)} km²</div>
-                  <div className="metric-hero-label">TOTAL ECOSYSTEM AREA</div>
+                  <div className="metric-hero-label">
+                    TOTAL ECOSYSTEM AREA{extentsSnapshotYear !== null && ` (${extentsSnapshotYear})`}
+                  </div>
+
+                  {extentsInsight && extentsInsight.hasChange && (
+                    <div className="metric-trend">
+                      <span className="metric-trend-arrow">{extentsInsight.headline.delta > 0 ? "▲" : "▼"}</span>
+                      <span className="metric-trend-pct">{Math.abs(extentsInsight.headline.pct).toFixed(1)}%</span>
+                      <span className={`metric-trend-label ${extentsInsight.headline.delta > 0 ? "trend-up" : "trend-down"}`}>
+                        {extentsInsight.headline.eco}
+                      </span>
+                    </div>
+                  )}
 
                   {extentsInsight && (
-                    <>
-                      <div className="metric-trend">
-                        <span className="metric-trend-arrow">{extentsInsight.totalIsUp ? "▲" : "▼"}</span>
-                        <span className="metric-trend-pct">{Math.abs(extentsInsight.totalPct).toFixed(1)}%</span>
-                        <span className={`metric-trend-label ${extentsInsight.totalIsUp ? "trend-up" : "trend-down"}`}>
-                          {extentsInsight.totalIsUp ? "Increasing" : "Decreasing"}
-                        </span>
-                      </div>
-                      <p className="metric-summary">
-                        Total area {extentsInsight.totalIsUp ? "increased" : "decreased"} by{" "}
-                        <strong>{Math.abs(extentsInsight.totalPct).toFixed(1)}%</strong> from{" "}
-                        {extentsInsight.firstYr} to {extentsInsight.lastYr}.
-                        {extentsInsight.biggestEco && (
-                          <> The biggest change was in <strong>{extentsInsight.biggestEco}</strong> area
-                          , which {extentsInsight.biggestPct >= 0 ? "grew" : "shrank"} by{" "}
-                          {Math.abs(extentsInsight.biggestPct).toFixed(1)}% ({extentsInsight.biggestChange.toFixed(2)} km²).</>
-                        )}
-                      </p>
-                    </>
+                    <p className="metric-summary">
+                      {extentsInsight.hasChange ? (
+                        <>
+                          From {extentsInsight.firstYr} to {extentsInsight.lastYr},{" "}
+                          <strong>{extentsInsight.headline.eco}</strong> changed the most —{" "}
+                          {extentsInsight.headline.delta > 0 ? "gained" : "lost"}{" "}
+                          {Math.abs(extentsInsight.headline.delta).toFixed(2)} km²{" "}
+                          ({Math.abs(extentsInsight.headline.pct).toFixed(0)}%{" "}
+                          {extentsInsight.headline.delta > 0 ? "bigger" : "smaller"}).
+                          {extentsInsight.headline.delta < 0 && extentsInsight.topGainer && (
+                            <> <strong>{extentsInsight.topGainer.eco}</strong> grew the most
+                            (+{extentsInsight.topGainer.delta.toFixed(2)} km²).</>
+                          )}
+                          {extentsInsight.headline.delta > 0 && extentsInsight.topLoser && (
+                            <> <strong>{extentsInsight.topLoser.eco}</strong> shrank the most
+                            ({extentsInsight.topLoser.delta.toFixed(2)} km²).</>
+                          )}
+                        </>
+                      ) : (
+                        <>From {extentsInsight.firstYr} to {extentsInsight.lastYr}, ecosystems stayed about the same.</>
+                      )}
+                    </p>
                   )}
                 </div>
 
-                {/* Area trend line chart */}
-                {extentsYearEntries.length > 0 && (
+                {/* Headline ecosystem trend */}
+                {extentsInsight && extentsHeadlineEntries.length >= 2 && (
                   <div className="chart-section">
-                    <div className="chart-section-label">Area Trend by Year (km²)</div>
-                    <LineChart entries={extentsYearEntries} formatValue={(v) => `${v.toFixed(2)} km²`} />
+                    <div className="chart-section-label">
+                      {extentsInsight.headline.eco} Area by Year (km²)
+                    </div>
+                    <LineChart
+                      entries={extentsHeadlineEntries}
+                      formatValue={(v) => `${v.toFixed(2)} km²`}
+                    />
                   </div>
                 )}
 

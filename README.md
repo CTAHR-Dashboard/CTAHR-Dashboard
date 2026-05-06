@@ -72,7 +72,7 @@ git clone https://github.com/CTAHR-Dashboard/CTAHR-Dashboard.git
 Navigate into the project folder:
 
 ```bash
-cd CTAHR-Dashboard
+cd capstone-dashboard
 ```
 
 Install dependencies:

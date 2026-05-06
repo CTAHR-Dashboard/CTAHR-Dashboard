@@ -25,7 +25,7 @@ This dashboard was developed as a capstone project in collaboration with Dr. Kir
 
 ---
 
-## Technologies Used
+## Tools and Stack
 
 ### Frontend
 

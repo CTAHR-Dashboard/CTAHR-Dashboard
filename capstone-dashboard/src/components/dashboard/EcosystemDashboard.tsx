@@ -1,4 +1,10 @@
-// Dashboard: loads GeoJSON data, manages filters, and passes data down to the map and sidebar.
+/*
+ * Main dashboard component. Loads fisheries and ecosystem extents GeoJSON data,
+ * manages all filter state (year range, county, species, ecosystem type, moku),
+ * aggregates exchange values and area totals per region, and orchestrates the
+ * map, filter sidebar, and data visualization panels. Also handles CSV download
+ * for both the fisheries and extents datasets.
+ */
 "use client";
 
 import { useEffect, useState } from "react";

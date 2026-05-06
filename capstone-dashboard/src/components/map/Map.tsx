@@ -1,4 +1,10 @@
-// Rendering map component, styles for choropleth, and tooltip content. Uses quantiles for color scaling.
+/*
+ * Leaflet map component. Renders a choropleth layer over Hawaii using GeoJSON
+ * data for either the fisheries or ecosystem extents layer. Colors are assigned
+ * via a quintile scale (stable thresholds passed from the parent so colors don't
+ * shift when filters change). Tooltips show region name, value, and active
+ * filter context. Clicking a region fires onCountyClick to open the viz panel.
+ */
 "use client";
 
 import { useEffect, useRef, useMemo } from "react";

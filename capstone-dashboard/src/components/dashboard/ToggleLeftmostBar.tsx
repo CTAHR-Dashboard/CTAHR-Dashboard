@@ -1,4 +1,8 @@
-// unused file
+/*
+ * Legacy left sidebar with dataset toggle buttons (Non-Commercial / Commercial).
+ * This component is no longer used — its functionality was absorbed into
+ * EcosystemDashboard and FilterSidebar. Kept here for reference.
+ */
 
 import "./dashboard.css";
 import Image from "next/image";

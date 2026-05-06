@@ -1,3 +1,9 @@
+/*
+ * Shared filtering utility for fisheries data. Exports the DashboardRow and
+ * Filters types, and the filterData function which applies optional county,
+ * year range, species group, and ecosystem type filters to a row array.
+ * Used by tests and can be imported by any component that needs client-side filtering.
+ */
 export type DashboardRow = {
   county: string;
   year: number;

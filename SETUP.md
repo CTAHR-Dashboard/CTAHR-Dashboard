@@ -41,13 +41,9 @@ cd your-existing-repo
 
 ## Step 2 — Get the Dashboard Code
 
-### Option A — If you have access to the original repository
 ```bash
 git clone https://github.com/CTAHR-Dashboard/CTAHR-Dashboard.git ctahr-temp
 ```
-
-### Option B — If you received a ZIP file
-1. Unzip the file to a temporary folder on your computer (e.g. `ctahr-temp`)
 
 ---
 

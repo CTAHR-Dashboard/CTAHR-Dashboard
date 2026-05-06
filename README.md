@@ -1,5 +1,3 @@
-# CTAHR-Dashboard
-
 # CTAHR Ecosystem Accounts Dashboard
 
 An interactive web dashboard developed for the University of Hawaiʻi CTAHR Ecosystem Accounts project. The dashboard allows users to explore fisheries ecosystem data across Hawaiʻi using interactive maps, filters, and downloadable datasets.

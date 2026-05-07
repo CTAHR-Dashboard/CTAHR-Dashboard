@@ -6,7 +6,6 @@
 
 import "./dashboard.css";
 import Image from "next/image";
-import { useState } from "react";
 
 interface LeftBarProps {
     dataset: "noncomm" | "comm";

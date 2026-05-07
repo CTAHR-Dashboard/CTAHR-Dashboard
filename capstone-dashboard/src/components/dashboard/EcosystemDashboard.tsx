@@ -105,7 +105,7 @@ function parseCommGeoJSON(geojson: GeoJSON): DataRow[] {
   return rows;
 }
 
-function LineChart({ entries, formatValue }: { entries: [number, number][]; formatValue?: (v: number) => string }) {
+function LineChart({ entries, formatValue, color = "#d94801" }: { entries: [number, number][]; formatValue?: (v: number) => string; color?: string }) {
   const [hovered, setHovered] = useState<number | null>(null);
 
   if (entries.length < 2) return null;
@@ -167,13 +167,13 @@ function LineChart({ entries, formatValue }: { entries: [number, number][]; form
       style={{ width: "100%", height: "auto", display: "block", overflow: "visible" }}
     >
       <defs>
-        <linearGradient id="lineAreaGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#d94801" stopOpacity="0.35" />
-          <stop offset="100%" stopColor="#d94801" stopOpacity="0.04" />
+        <linearGradient id={`lineAreaGrad-${color.replace("#", "")}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.35" />
+          <stop offset="100%" stopColor={color} stopOpacity="0.04" />
         </linearGradient>
       </defs>
-      <path d={areaPath} fill="url(#lineAreaGrad)" />
-      <path d={linePath} fill="none" stroke="#d94801" strokeWidth="1.8" strokeLinejoin="round" />
+      <path d={areaPath} fill={`url(#lineAreaGrad-${color.replace("#", "")})`} />
+      <path d={linePath} fill="none" stroke={color} strokeWidth="1.8" strokeLinejoin="round" />
 
       {pts.map(([x, y], i) => (
         <circle
@@ -191,7 +191,7 @@ function LineChart({ entries, formatValue }: { entries: [number, number][]; form
           key={`dot-${i}`}
           cx={x} cy={y}
           r={hovered === i ? 4 : 2.5}
-          fill="#d94801"
+          fill={color}
           style={{ pointerEvents: "none", transition: "r 0.1s" }}
         />
       ))}
@@ -200,7 +200,7 @@ function LineChart({ entries, formatValue }: { entries: [number, number][]; form
         <line
           x1={tooltip.cx} y1={padT}
           x2={tooltip.cx} y2={bottomY}
-          stroke="#d94801" strokeWidth="0.8" strokeDasharray="3 2"
+          stroke={color} strokeWidth="0.8" strokeDasharray="3 2"
           style={{ pointerEvents: "none" }}
         />
       )}
@@ -211,12 +211,12 @@ function LineChart({ entries, formatValue }: { entries: [number, number][]; form
             x={tooltip.tx} y={tooltip.ty}
             width={tooltip.tipW} height={tooltip.tipH}
             rx={tooltip.tipR} ry={tooltip.tipR}
-            fill="#1a1a1a" stroke="#d94801" strokeWidth="0.8"
+            fill="#1a1a1a" stroke={color} strokeWidth="0.8"
           />
           <text x={tooltip.tx + tooltip.tipW / 2} y={tooltip.ty + 10} textAnchor="middle" fontSize="7.5" fill="#888">
             {tooltip.year}
           </text>
-          <text x={tooltip.tx + tooltip.tipW / 2} y={tooltip.ty + 20} textAnchor="middle" fontSize="8.5" fontWeight="bold" fill="#d94801">
+          <text x={tooltip.tx + tooltip.tipW / 2} y={tooltip.ty + 20} textAnchor="middle" fontSize="8.5" fontWeight="bold" fill={color}>
             {tooltip.label}
           </text>
         </g>
@@ -291,11 +291,16 @@ export default function EcosystemDashboard({ geoJsonPath, datasetLabel }: Dashbo
       setGeoData(dataset === "comm" ? dataGeo : geo);
       setRowData(rows);
 
+      const speciesValues = [...new Set(rows.map((r) => r.species_group))].sort();
+      const ecoValues = [...new Set(rows.map((r) => r.ecosystem_type))].sort();
+      const pickDefault = (values: string[], aggregateLabel: string) =>
+        values.includes(aggregateLabel) ? aggregateLabel : values[0] ?? "";
+
       setSelectedCounty("");
       setSelectedYearStart(null);
       setSelectedYearEnd(null);
-      setSelectedSpecies("");
-      setSelectedEcosystem("");
+      setSelectedSpecies(pickDefault(speciesValues, "All Species"));
+      setSelectedEcosystem(pickDefault(ecoValues, "All Ecosystems"));
       setShowRawData(false);
       setSelectedArea("");
       setActiveTab("filter");
@@ -670,27 +675,15 @@ export default function EcosystemDashboard({ geoJsonPath, datasetLabel }: Dashbo
     .map(([k, v]) => [Number(k), v] as [number, number])
     .sort(([a], [b]) => a - b);
 
-  // Headline, by ecosystem, and by realm are a single year snapshot (latest in range).
-  // Each year is a full ecosystem inventory of the moku, so summing years would
-  // multiply the moku footprint by the number of years.
+  // Latest year snapshot supplies the subtitle ("2019 area X km²").
   const extentsSnapshotYear = extentsYearEntries.length > 0
     ? extentsYearEntries[extentsYearEntries.length - 1][0]
     : null;
-  const extentsSnapshotRows = extentsSnapshotYear !== null
-    ? extentsPanelRows.filter((r) => r.year === extentsSnapshotYear)
-    : [];
-
-  const extentsByEcosystem: Record<string, number> = {};
-  const extentsByRealm: Record<string, number> = {};
-  extentsSnapshotRows.forEach((row) => {
-    extentsByEcosystem[row.ecosystem_type] = (extentsByEcosystem[row.ecosystem_type] || 0) + row.area_km2;
-    extentsByRealm[row.realm] = (extentsByRealm[row.realm] || 0) + row.area_km2;
-  });
-  const extentsEcoEntries = Object.entries(extentsByEcosystem).sort(([, a], [, b]) => b - a);
-  const extentsRealmEntries = Object.entries(extentsByRealm).sort(([, a], [, b]) => b - a);
-  const extentsTotalArea = extentsSnapshotRows.reduce((sum, r) => sum + r.area_km2, 0);
-  const maxExtentsEco = Math.max(...extentsEcoEntries.map(([, v]) => v), 1);
-  const maxExtentsRealm = Math.max(...extentsRealmEntries.map(([, v]) => v), 1);
+  const extentsTotalArea = extentsSnapshotYear !== null
+    ? extentsPanelRows
+        .filter((r) => r.year === extentsSnapshotYear)
+        .reduce((sum, r) => sum + r.area_km2, 0)
+    : 0;
 
   // Per ecosystem change between first and last year in viz range
   const extentsEcoByYear: Record<string, Record<number, number>> = {};
@@ -712,14 +705,14 @@ export default function EcosystemDashboard({ geoJsonPath, datasetLabel }: Dashbo
       firstArea: number;
       lastArea: number;
       delta: number;
-      pct: number;
+      pct: number | null;
     };
 
     const changes: EcoChange[] = Object.entries(extentsEcoByYear).map(([eco, byYr]) => {
       const firstArea = byYr[firstYr] || 0;
       const lastArea = byYr[lastYr] || 0;
       const delta = lastArea - firstArea;
-      const pct = firstArea > 0 ? (delta / firstArea) * 100 : 0;
+      const pct = firstArea > 0 ? (delta / firstArea) * 100 : null;
       return { eco, firstArea, lastArea, delta, pct };
     });
 
@@ -733,15 +726,16 @@ export default function EcosystemDashboard({ geoJsonPath, datasetLabel }: Dashbo
     const headline = changes.slice().sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))[0];
     const hasChange = Math.abs(headline.delta) > 0.005;
 
-    return { firstYr, lastYr, topGainer, topLoser, headline, hasChange };
+    return { firstYr, lastYr, topGainer, topLoser, headline, hasChange, changes };
   })();
 
-  // Year by year area for the headline ecosystem. Used by the trend line chart.
-  const extentsHeadlineEntries: [number, number][] = extentsInsight
-    ? Object.entries(extentsEcoByYear[extentsInsight.headline.eco] || {})
-        .map(([yr, v]) => [Number(yr), v] as [number, number])
-        .sort(([a], [b]) => a - b)
+  // Per ecosystem deltas, sorted by absolute change for the bar chart.
+  const extentsChangeEntries = extentsInsight
+    ? extentsInsight.changes.slice().sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
     : [];
+  const maxExtentsChangeAbs = extentsChangeEntries.length > 0
+    ? Math.max(...extentsChangeEntries.map((c) => Math.abs(c.delta)), 1)
+    : 1;
 
   return (
     <div className="dashboard-container">
@@ -959,8 +953,8 @@ export default function EcosystemDashboard({ geoJsonPath, datasetLabel }: Dashbo
                       setSelectedCounty("");
                       setSelectedYearStart(null);
                       setSelectedYearEnd(null);
-                      setSelectedSpecies("");
-                      setSelectedEcosystem("");
+                      setSelectedSpecies(speciesGroups.includes("All Species") ? "All Species" : speciesGroups[0] ?? "");
+                      setSelectedEcosystem(ecosystemTypes.includes("All Ecosystems") ? "All Ecosystems" : ecosystemTypes[0] ?? "");
                     }}
                   >
                     ↺ Reset Filters
@@ -1033,12 +1027,6 @@ export default function EcosystemDashboard({ geoJsonPath, datasetLabel }: Dashbo
                 <div className="rp-section">
                   <div className="filter-label">Species Group</div>
                   <div className="button-group">
-                    <button
-                      className={`filter-btn ${selectedSpecies === "" ? "active" : ""}`}
-                      onClick={() => setSelectedSpecies("")}
-                    >
-                      All
-                    </button>
                     {speciesGroups.map((s) => (
                       <button
                         key={s}
@@ -1055,12 +1043,6 @@ export default function EcosystemDashboard({ geoJsonPath, datasetLabel }: Dashbo
                 <div className="rp-section">
                   <div className="filter-label">Ecosystem Type</div>
                   <div className="button-group">
-                    <button
-                      className={`filter-btn ${selectedEcosystem === "" ? "active" : ""}`}
-                      onClick={() => setSelectedEcosystem("")}
-                    >
-                      All
-                    </button>
                     {ecosystemTypes.map((e) => (
                       <button
                         key={e}
@@ -1129,7 +1111,7 @@ export default function EcosystemDashboard({ geoJsonPath, datasetLabel }: Dashbo
                     <div className="data-panel-subtitle">
                       {extentsPanelRows.length} record{extentsPanelRows.length !== 1 ? "s" : ""}
                       {extentsSnapshotYear !== null && (
-                        <>&nbsp;&mdash;&nbsp;{extentsSnapshotYear}: {extentsTotalArea.toFixed(2)} km²</>
+                        <>&nbsp;&mdash;&nbsp;{extentsSnapshotYear} area {extentsTotalArea.toFixed(2)} km²</>
                       )}
                     </div>
                   </div>
@@ -1142,91 +1124,75 @@ export default function EcosystemDashboard({ geoJsonPath, datasetLabel }: Dashbo
                   }}>✕</button>
                 </div>
 
-                {/* Hero metric card */}
-                <div className="metric-hero-card">
-                  <div className="metric-hero-value">{extentsTotalArea.toFixed(2)} km²</div>
-                  <div className="metric-hero-label">
-                    TOTAL ECOSYSTEM AREA{extentsSnapshotYear !== null && ` (${extentsSnapshotYear})`}
-                  </div>
-
-                  {extentsInsight && extentsInsight.hasChange && (
-                    <div className="metric-trend">
-                      <span className="metric-trend-arrow">{extentsInsight.headline.delta > 0 ? "▲" : "▼"}</span>
-                      <span className="metric-trend-pct">{Math.abs(extentsInsight.headline.pct).toFixed(1)}%</span>
-                      <span className={`metric-trend-label ${extentsInsight.headline.delta > 0 ? "trend-up" : "trend-down"}`}>
-                        {extentsInsight.headline.eco}
-                      </span>
+                {/* Hero metric card showing the biggest ecosystem change */}
+                {extentsInsight && extentsInsight.hasChange && (() => {
+                  const isUp = extentsInsight.headline.delta > 0;
+                  const accent = isUp ? "#4caf82" : "#d94801";
+                  return (
+                    <div className="metric-hero-card" style={{ borderLeftColor: accent }}>
+                      <div className="metric-hero-value" style={{ color: accent }}>
+                        {isUp ? "+" : ""}{extentsInsight.headline.delta.toFixed(2)} km²
+                      </div>
+                      <div className="metric-hero-label">
+                        BIGGEST ECOSYSTEM CHANGE ({extentsInsight.firstYr}&ndash;{extentsInsight.lastYr})
+                      </div>
+                      <div className="metric-trend">
+                        <span className="metric-trend-arrow" style={{ color: accent }}>{isUp ? "▲" : "▼"}</span>
+                        <span className="metric-trend-pct" style={{ color: accent }}>
+                          {extentsInsight.headline.pct === null
+                            ? "new"
+                            : `${Math.abs(extentsInsight.headline.pct).toFixed(1)}%`}
+                        </span>
+                        <span className={`metric-trend-label ${isUp ? "trend-up" : "trend-down"}`}>
+                          {extentsInsight.headline.eco}
+                        </span>
+                      </div>
+                      <p className="metric-summary">
+                        <strong>{extentsInsight.headline.eco}</strong> had the largest area change across all ecosystem types from {extentsInsight.firstYr} to {extentsInsight.lastYr}:{" "}
+                        <span style={{ color: accent, fontWeight: 600 }}>
+                          {isUp ? "+" : ""}{extentsInsight.headline.delta.toFixed(2)} km²{" "}
+                          ({extentsInsight.headline.pct === null
+                            ? "new"
+                            : `${isUp ? "+" : ""}${extentsInsight.headline.pct.toFixed(1)}%`})
+                        </span>.
+                      </p>
                     </div>
-                  )}
+                  );
+                })()}
 
-                  {extentsInsight && (
+                {extentsInsight && !extentsInsight.hasChange && (
+                  <div className="metric-hero-card">
+                    <div className="metric-hero-label">
+                      NO CHANGE ({extentsInsight.firstYr}&ndash;{extentsInsight.lastYr})
+                    </div>
                     <p className="metric-summary">
-                      {extentsInsight.hasChange ? (
-                        <>
-                          From {extentsInsight.firstYr} to {extentsInsight.lastYr},{" "}
-                          <strong>{extentsInsight.headline.eco}</strong> changed the most —{" "}
-                          {extentsInsight.headline.delta > 0 ? "gained" : "lost"}{" "}
-                          {Math.abs(extentsInsight.headline.delta).toFixed(2)} km²{" "}
-                          ({Math.abs(extentsInsight.headline.pct).toFixed(0)}%{" "}
-                          {extentsInsight.headline.delta > 0 ? "bigger" : "smaller"}).
-                          {extentsInsight.headline.delta < 0 && extentsInsight.topGainer && (
-                            <> <strong>{extentsInsight.topGainer.eco}</strong> grew the most
-                            (+{extentsInsight.topGainer.delta.toFixed(2)} km²).</>
-                          )}
-                          {extentsInsight.headline.delta > 0 && extentsInsight.topLoser && (
-                            <> <strong>{extentsInsight.topLoser.eco}</strong> shrank the most
-                            ({extentsInsight.topLoser.delta.toFixed(2)} km²).</>
-                          )}
-                        </>
-                      ) : (
-                        <>From {extentsInsight.firstYr} to {extentsInsight.lastYr}, ecosystems stayed about the same.</>
-                      )}
+                      From {extentsInsight.firstYr} to {extentsInsight.lastYr}, ecosystems stayed about the same.
                     </p>
-                  )}
-                </div>
+                  </div>
+                )}
 
-                {/* Headline ecosystem trend */}
-                {extentsInsight && extentsHeadlineEntries.length >= 2 && (
+                {/* Per ecosystem area change bars */}
+                {extentsInsight && extentsChangeEntries.length > 0 && (
                   <div className="chart-section">
                     <div className="chart-section-label">
-                      {extentsInsight.headline.eco} Area by Year (km²)
+                      Area Change by Ecosystem Type ({extentsInsight.firstYr}&ndash;{extentsInsight.lastYr})
                     </div>
-                    <LineChart
-                      entries={extentsHeadlineEntries}
-                      formatValue={(v) => `${v.toFixed(2)} km²`}
-                    />
-                  </div>
-                )}
-
-                {/* By Realm */}
-                {extentsRealmEntries.length > 0 && (
-                  <div className="chart-section">
-                    <div className="chart-section-label">By Realm</div>
-                    {extentsRealmEntries.map(([name, value]) => (
-                      <div key={name} className="bar-row">
-                        <div className="bar-name" title={name}>{name}</div>
-                        <div className="bar-track">
-                          <div className="bar-fill" style={{ width: `${(value / maxExtentsRealm) * 100}%` }} />
+                    {extentsChangeEntries.map((c) => {
+                      const isUp = c.delta > 0;
+                      const color = isUp ? "#4caf82" : "#d94801";
+                      const widthPct = (Math.abs(c.delta) / maxExtentsChangeAbs) * 100;
+                      return (
+                        <div key={c.eco} className="bar-row">
+                          <div className="bar-name" title={c.eco}>{c.eco}</div>
+                          <div className="bar-track">
+                            <div className="bar-fill" style={{ width: `${widthPct}%`, background: color }} />
+                          </div>
+                          <div className="bar-value" style={{ color }}>
+                            {isUp ? "+" : ""}{c.delta.toFixed(2)} km²
+                          </div>
                         </div>
-                        <div className="bar-value">{value.toFixed(2)} km²</div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* By Ecosystem */}
-                {extentsEcoEntries.length > 0 && (
-                  <div className="chart-section">
-                    <div className="chart-section-label">By Ecosystem Type</div>
-                    {extentsEcoEntries.map(([name, value]) => (
-                      <div key={name} className="bar-row">
-                        <div className="bar-name" title={name}>{name}</div>
-                        <div className="bar-track">
-                          <div className="bar-fill" style={{ width: `${(value / maxExtentsEco) * 100}%` }} />
-                        </div>
-                        <div className="bar-value">{value.toFixed(2)} km²</div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
 
@@ -1263,7 +1229,7 @@ export default function EcosystemDashboard({ geoJsonPath, datasetLabel }: Dashbo
                       <tfoot>
                         <tr>
                           <td colSpan={2}>Total</td>
-                          <td>{extentsTotalArea.toFixed(2)}</td>
+                          <td>{extentsPanelRows.reduce((s, r) => s + r.area_km2, 0).toFixed(2)}</td>
                         </tr>
                       </tfoot>
                     </table>
@@ -1292,29 +1258,48 @@ export default function EcosystemDashboard({ geoJsonPath, datasetLabel }: Dashbo
                   }}>✕</button>
                 </div>
 
-                <div className="metric-hero-card">
-                  <div className="metric-hero-value">{formatCurrency(tableTotal)}</div>
-                  <div className="metric-hero-label">TOTAL EXCHANGE VALUE</div>
+                {(() => {
+                  const fishAccent = trendPct !== null && trendIsUp ? "#4caf82" : "#d94801";
+                  return (
+                    <>
+                      <div
+                        className="metric-hero-card"
+                        style={trendPct !== null ? { borderLeftColor: fishAccent } : undefined}
+                      >
+                        <div
+                          className="metric-hero-value"
+                          style={trendPct !== null ? { color: fishAccent } : undefined}
+                        >
+                          {formatCurrency(tableTotal)}
+                        </div>
+                        <div className="metric-hero-label">TOTAL EXCHANGE VALUE</div>
 
-                  {trendPct !== null && (
-                    <div className="metric-trend">
-                      <span className="metric-trend-arrow">{trendIsUp ? "▲" : "▼"}</span>
-                      <span className="metric-trend-pct">{Math.abs(trendPct).toFixed(1)}%</span>
-                      <span className={`metric-trend-label ${trendIsUp ? "trend-up" : "trend-down"}`}>
-                        {trendLabel}
-                      </span>
-                    </div>
-                  )}
+                        {trendPct !== null && (
+                          <div className="metric-trend">
+                            <span className="metric-trend-arrow" style={{ color: fishAccent }}>
+                              {trendIsUp ? "▲" : "▼"}
+                            </span>
+                            <span className="metric-trend-pct" style={{ color: fishAccent }}>
+                              {Math.abs(trendPct).toFixed(1)}%
+                            </span>
+                            <span className={`metric-trend-label ${trendIsUp ? "trend-up" : "trend-down"}`}>
+                              {trendLabel}
+                            </span>
+                          </div>
+                        )}
 
-                  {summaryText && <p className="metric-summary">{summaryText}</p>}
-                </div>
+                        {summaryText && <p className="metric-summary">{summaryText}</p>}
+                      </div>
 
-                {yearEntries.length > 0 && (
-                  <div className="chart-section">
-                    <div className="chart-section-label">Exchange Value Trend by Year</div>
-                    <LineChart entries={yearEntries} />
-                  </div>
-                )}
+                      {yearEntries.length > 0 && (
+                        <div className="chart-section">
+                          <div className="chart-section-label">Exchange Value Trend by Year</div>
+                          <LineChart entries={yearEntries} color={fishAccent} />
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
 
                 {speciesEntries.length > 0 && (
                   <div className="chart-section">

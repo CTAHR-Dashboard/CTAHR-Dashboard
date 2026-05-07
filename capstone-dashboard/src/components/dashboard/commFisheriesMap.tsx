@@ -6,11 +6,13 @@
  */
 "use client";
 
-import { useState, useEffect, Component } from 'react';
+import { useState, useEffect } from 'react';
 import Map from "../map/Map";
+import type { DashboardGeoJSON } from "../map/Map";
+
 export default function CommFisheriesDashboard() {
 
-    const [jsonData, setJsonData] = useState({})
+    const [jsonData, setJsonData] = useState<DashboardGeoJSON | null>(null)
     const [dataLoaded, setDataLoaded] = useState(false)
 
     useEffect(() => {
@@ -26,7 +28,7 @@ export default function CommFisheriesDashboard() {
 
     return(
         <div style={{height: "100vh"}}>
-            {dataLoaded && <Map
+            {dataLoaded && jsonData && <Map
                 mapType='comm'
                 geoData={jsonData}
                 selectedCounty=""

@@ -34,9 +34,8 @@ global.fetch = jest.fn(() =>
 
 describe("Species Group filter", () => {
 
-  // checks that the species group filter section renders correctly
-  // confirms buttons are created based on species group values in the dataset
-  test("renders species group buttons", async () => {
+  // checks that buttons are created based on species group values in the dataset
+  test("renders one button per species group", async () => {
 
     render(
       <EcosystemDashboard
@@ -46,18 +45,26 @@ describe("Species Group filter", () => {
     );
 
     expect(await screen.findByText("Species Group")).toBeInTheDocument();
-
-    // confirm the default "All" button appears
-    const allButtons = screen.getAllByRole("button", { name: "All" });
-    expect(allButtons.length).toBeGreaterThan(0);
-
-    // confirm dataset-generated species group buttons appear
     expect(screen.getByRole("button", { name: "Fish" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Crab" })).toBeInTheDocument();
   });
 
+  // checks that the first species group is selected by default when no
+  // aggregate row (e.g. "All Species") exists in the data
+  test("defaults to the first species group when no aggregate row exists", async () => {
+
+    render(
+      <EcosystemDashboard
+        geoJsonPath="/mock.geojson"
+        datasetLabel="Test Dataset"
+      />
+    );
+
+    const crabButton = await screen.findByRole("button", { name: "Crab" });
+    expect(crabButton).toHaveClass("active");
+  });
+
   // checks that selecting a species group activates the selected filter button
-  // confirms the dashboard updates filter state after user interaction
   test("selecting a species makes it active", async () => {
 
     render(
@@ -68,11 +75,7 @@ describe("Species Group filter", () => {
     );
 
     const fishButton = await screen.findByRole("button", { name: "Fish" });
-
-    // simulate clicking the Fish species group filter
     fireEvent.click(fishButton);
-
-    // confirm the selected button becomes active
     expect(fishButton).toHaveClass("active");
   });
 

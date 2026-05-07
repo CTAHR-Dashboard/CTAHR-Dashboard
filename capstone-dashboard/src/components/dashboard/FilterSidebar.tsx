@@ -1,3 +1,8 @@
+/*
+ * Left navigation sidebar. Displays the Oleson Lab logo and title, and lets
+ * the user switch between the Fisheries layer and the Ecosystem Extents layer.
+ * Calls onLayerChange to reset selected map regions when the layer is toggled.
+ */
 "use client";
 
 interface FilterSidebarProps {

@@ -1,4 +1,11 @@
+/*
+ * Left navigation sidebar. Displays the Oleson Lab logo and title, and lets
+ * the user switch between the Fisheries layer and the Ecosystem Extents layer.
+ * Calls onLayerChange to reset selected map regions when the layer is toggled.
+ */
 "use client";
+
+import Image from "next/image";
 
 interface FilterSidebarProps {
   layer: "fisheries" | "extents";
@@ -14,7 +21,7 @@ export default function FilterSidebar({ layer, setLayer, onLayerChange }: Filter
 
   return (
     <div className="left-nav">
-      <img src="/logo.png" className="left-nav-logo" alt="Oleson Lab" />
+      <Image src="/logo.png" className="left-nav-logo" alt="Oleson Lab" width={144} height={48} unoptimized />
       <div className="left-nav-title">Hawaiʻi</div>
       <div className="left-nav-subtitle">Ecosystem Accounts</div>
 

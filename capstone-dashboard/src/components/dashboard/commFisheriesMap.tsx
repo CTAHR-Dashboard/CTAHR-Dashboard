@@ -1,12 +1,18 @@
+/*
+ * Standalone prototype dashboard for the commercial fisheries dataset.
+ * Fetches the commercial exchange value GeoJSON and renders it directly in
+ * the Map component with hardcoded filters. This was an early proof-of-concept
+ * and is no longer wired into the main app.
+ */
 "use client";
 
-import { useState, useEffect, Component } from 'react';
+import { useState, useEffect } from 'react';
 import Map from "../map/Map";
+import type { DashboardGeoJSON } from "../map/Map";
 
-// I DON'T CARE ABOUT TYPESCRIPT. THIS WORKS!
 export default function CommFisheriesDashboard() {
 
-    const [jsonData, setJsonData] = useState({})
+    const [jsonData, setJsonData] = useState<DashboardGeoJSON | null>(null)
     const [dataLoaded, setDataLoaded] = useState(false)
 
     useEffect(() => {
@@ -22,7 +28,7 @@ export default function CommFisheriesDashboard() {
 
     return(
         <div style={{height: "100vh"}}>
-            {dataLoaded && <Map
+            {dataLoaded && jsonData && <Map
                 mapType='comm'
                 geoData={jsonData}
                 selectedCounty=""

@@ -1,3 +1,8 @@
+/*
+ * Root layout for the Next.js app. Sets global HTML structure, applies
+ * Geist font variables, and defines the page metadata (title, description,
+ * favicon) shown in the browser tab and search results.
+ */
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";

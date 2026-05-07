@@ -4,10 +4,10 @@ import EcosystemDashboard from "../components/dashboard/EcosystemDashboard";
 // mock the Map component so we can simulate clicking a region
 // without needing the Leaflet environment during testing
 jest.mock("../components/map/Map", () => {
-  return function MockMap(props: any) {
+  return function MockMap(props: { onCountyClick?: (county: string) => void }) {
     return (
       <button
-        onClick={() => props.onCountyClick("Hawaii")}
+        onClick={() => props.onCountyClick?.("Hawaii")}
       >
         Mock Map Region
       </button>

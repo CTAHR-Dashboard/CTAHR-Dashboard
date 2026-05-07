@@ -1,11 +1,36 @@
-// Rendering map component, styles for choropleth, and tooltip content. Uses quantiles for color scaling.
+/*
+ * Leaflet map component. Renders a choropleth layer over Hawaii using GeoJSON
+ * data for either the fisheries or ecosystem extents layer. Colors are assigned
+ * via a quintile scale (stable thresholds passed from the parent so colors don't
+ * shift when filters change). Tooltips show region name, value, and active
+ * filter context. Clicking a region fires onCountyClick to open the viz panel.
+ */
 "use client";
 
 import { useEffect, useRef, useMemo } from "react";
 import { MapContainer, TileLayer, ZoomControl, useMap } from "react-leaflet";
 import type { LatLngExpression } from "leaflet";
+import type { GeoJsonObject } from "geojson";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+
+type LayerType = "fisheries" | "extents";
+type FeatureValueField = "total_area_km2" | "total_exchange_value";
+
+interface DashboardFeatureProperties {
+  [key: string]: unknown;
+}
+
+interface DashboardGeoFeature {
+  type: string;
+  properties: DashboardFeatureProperties;
+  geometry: unknown;
+}
+
+export interface DashboardGeoJSON {
+  type: string;
+  features: DashboardGeoFeature[];
+}
 
 interface ColorThresholds {
   q1: number;
@@ -16,8 +41,8 @@ interface ColorThresholds {
 
 interface MapProps {
   mapType?: string;
-  layerType?: "fisheries" | "extents";
-  geoData: any;
+  layerType?: LayerType;
+  geoData: DashboardGeoJSON;
   selectedCounty: string;
   selectedYearStart: number | null;
   selectedYearEnd: number | null;
@@ -38,7 +63,7 @@ function GeoJSONLayer({
   selectedEcosystem,
   onCountyClick,
   colorThresholds,
-}: Omit<MapProps, "layerType"> & { layerType: "fisheries" | "extents" }) {
+}: Omit<MapProps, "layerType"> & { layerType: LayerType }) {
   const map = useMap();
   const layerRef = useRef<L.GeoJSON | null>(null);
 
@@ -47,9 +72,9 @@ function GeoJSONLayer({
     if (colorThresholds) {
       ({ q1, q2, q3, q4 } = colorThresholds);
     } else {
-      const field = layerType === "extents" ? "total_area_km2" : "total_exchange_value";
+      const field: FeatureValueField = layerType === "extents" ? "total_area_km2" : "total_exchange_value";
       const values = geoData.features
-        .map((f: any) => f.properties[field] || 0)
+        .map((f) => Number(f.properties[field]) || 0)
         .sort((a: number, b: number) => a - b);
       q1 = values[Math.floor(values.length * 0.2)] || 0;
       q2 = values[Math.floor(values.length * 0.4)] || 0;
@@ -78,12 +103,12 @@ function GeoJSONLayer({
       layerRef.current = null;
     }
 
-    const field = layerType === "extents" ? "total_area_km2" : "total_exchange_value";
+    const field: FeatureValueField = layerType === "extents" ? "total_area_km2" : "total_exchange_value";
     const isExtents = layerType === "extents";
 
-    const geojsonLayer = L.geoJSON(geoData, {
-      style: (feature: any) => {
-        const value = feature?.properties?.[field] || 0;
+    const geojsonLayer = L.geoJSON(geoData as GeoJsonObject, {
+      style: (feature) => {
+        const value = Number(feature?.properties?.[field]) || 0;
         const featureKey = isExtents
           ? feature?.properties?.moku_key
           : mapType === "comm"
@@ -97,8 +122,8 @@ function GeoJSONLayer({
           weight: isSelected ? 2.5 : 0.8,
         };
       },
-      onEachFeature: (feature: any, layer: any) => {
-        const value = feature?.properties?.[field] || 0;
+      onEachFeature: (feature, layer) => {
+        const value = Number(feature?.properties?.[field]) || 0;
 
         const label = isExtents
           ? `${feature.properties.realm} — ${feature.properties.moku_olelo}`
@@ -135,12 +160,12 @@ function GeoJSONLayer({
               : mapType === "comm"
               ? feature.properties.area_id
               : feature.properties.county;
-            onCountyClick?.(key);
+            onCountyClick?.(String(key ?? ""));
           },
-          mouseover: (e: any) => {
+          mouseover: (e: L.LeafletMouseEvent) => {
             e.target.setStyle({ fillOpacity: 0.85 });
           },
-          mouseout: (e: any) => {
+          mouseout: (e: L.LeafletMouseEvent) => {
             const featureKey = isExtents
               ? feature.properties.moku_key
               : mapType === "comm"

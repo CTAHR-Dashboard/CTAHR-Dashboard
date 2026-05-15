@@ -111,6 +111,8 @@ The project is deployed using Cloudflare Pages.
 
 Production deployments automatically update when changes are pushed to the production branch.
 
+Link to deployment can be found here: https://ctahr-dashboard.pages.dev/
+
 ---
 
 ## Data Sources
